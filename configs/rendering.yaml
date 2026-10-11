@@ -1,0 +1,14 @@
+# Page rendering. The PNG is the visual source of truth.
+# Extracted PDF text is stored only as a weak diagnostic and is never a gold label.
+
+dpi: 200
+allowed_dpi:
+  - 150
+  - 200
+  - 250
+  - 300
+  - 400
+overwrite: false
+image_format: png
+extract_pdf_text_layer: true
+pdf_text_layer_role: weak_diagnostic_not_ground_truth

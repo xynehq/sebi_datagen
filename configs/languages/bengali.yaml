@@ -1,0 +1,13 @@
+language: bengali
+script: Bengali
+tesseract_lang: ben+eng
+prompt: Transcribe the line exactly as it appears.
+data_dir: data/bengali
+runs_dir: runs/bengali
+reports_dir: reports/bengali
+dataset_dir: data/bengali/real10k
+source_dir: data/bengali/source
+train_count: 9200
+val_count: 800
+seed: 3407
+adapters_dir: models/adapters/bengali

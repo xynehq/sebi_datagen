@@ -1,0 +1,42 @@
+# Orchestrator settings. CLI flags override these values.
+# The strict dataset loader does not read this file.
+
+dataset_size: null
+source_dir: input/pdfs
+also_scan: data/raw/documents
+train_ratio: 0.8
+val_ratio: 0.1
+seed: 3407
+
+runtime:
+  require_tesseract: false
+  require_gpu: false
+  require_ocr_models: false
+
+paths:
+  frozen_benchmark: data/eval_data
+  train_manifest: data/datasets/train.jsonl
+  val_manifest: data/datasets/val.jsonl
+
+models:
+  indicocr:
+    env: INDICOCR_MODEL_PATH
+    huggingface: bodhan-ai/indic-ocr
+    obtain: "Place the local IndicOCR snapshot in a folder and export INDICOCR_MODEL_PATH to that folder."
+  chitrapathak:
+    env: CHITRAPATHAK_MODEL_PATH
+    huggingface: null
+    obtain: "Place the local Chitrapathak weights in a folder and export CHITRAPATHAK_MODEL_PATH to that folder."
+  tesseract:
+    env: TESSERACT_CMD
+    huggingface: null
+    obtain: "Install Tesseract and the Marathi traineddata (mar.traineddata) on this machine."
+  checkpoint:
+    env: CHECKPOINT
+    huggingface: null
+    obtain: "Use a local .ckpt when it is present, or pass --checkpoint with a Hugging Face link."
+
+wandb:
+  enabled: false
+  project: marathi-ocr
+  mode: offline

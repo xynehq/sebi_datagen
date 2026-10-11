@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marathi OCR Review</title>
+<style>
+:root{--bg:#f4f1ea;--ink:#1c1917;--muted:#57534e;--panel:#fffdf8;--line:#d6d3d1;--accent:#0f766e;--danger:#b91c1c;--warn:#b45309;--ok:#166534}
+*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif;color:var(--ink);background:linear-gradient(180deg,#f7f3ea,var(--bg));min-height:100vh}
+header{display:flex;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;border-bottom:1px solid var(--line);background:rgba(255,253,248,.92);position:sticky;top:0;z-index:2}
+h1{font-size:1.1rem;margin:0}.meta{color:var(--muted);font-size:.9rem}
+main{display:grid;grid-template-columns:1.2fr 1fr;gap:1rem;padding:1rem 1.25rem 2rem}
+@media(max-width:1100px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem}
+.panel h2{margin:0 0 .75rem;font-size:1rem}
+.ids{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.35rem 1rem;font-size:.85rem;margin-bottom:.75rem}
+.ids code{font-family:ui-monospace,Menlo,monospace}
+.img-wrap{background:#111;border-radius:8px;padding:.5rem;overflow:auto;margin-bottom:.75rem}
+.img-wrap img{display:block;max-width:100%;height:auto;image-rendering:pixelated;background:#fff}
+.badge-row{display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0}
+.badge{border:1px solid var(--line);border-radius:999px;padding:.15rem .55rem;font-size:.8rem;background:#fff}
+.badge.warn{border-color:#f59e0b;color:var(--warn)}.badge.danger{border-color:#f87171;color:var(--danger)}
+.ocr-card{border:1px solid var(--line);border-radius:8px;padding:.65rem .75rem;margin-bottom:.55rem;background:#fff}
+.ocr-text{white-space:pre-wrap;word-break:break-word;font-family:"Noto Sans Devanagari","Kohinoor Devanagari",sans-serif;font-size:1.05rem;margin-top:.35rem}
+.empty{color:var(--danger);font-style:italic}
+.consensus{border:1px dashed var(--warn);background:#fff7ed;border-radius:8px;padding:.65rem .75rem;margin:.75rem 0}
+.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;margin:.75rem 0}
+button{font:inherit;border-radius:8px;border:1px solid var(--line);padding:.65rem .75rem;cursor:pointer;background:#fff}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+button.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+button.warn{background:var(--warn);color:#fff;border-color:var(--warn)}
+textarea,input[type=text]{width:100%;font:inherit;font-family:"Noto Sans Devanagari","Kohinoor Devanagari",sans-serif;border:1px solid var(--line);border-radius:8px;padding:.65rem;background:#fff}
+textarea{min-height:7rem;resize:vertical}label{display:block;margin:.55rem 0 .25rem;font-size:.9rem;color:var(--muted)}
+.nav{display:flex;gap:.5rem;margin-top:.75rem}.hint{font-size:.8rem;color:var(--muted);margin-top:.5rem}
+.stored{margin-top:.5rem;padding:.5rem .65rem;background:#ecfdf5;border-radius:8px;border:1px solid #a7f3d0;white-space:pre-wrap;font-family:"Noto Sans Devanagari","Kohinoor Devanagari",sans-serif}
+.error{color:var(--danger);white-space:pre-wrap;margin-top:.5rem}
+.tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.35rem}
+.tags label.tag{display:inline-flex;gap:.3rem;align-items:center;border:1px solid var(--line);border-radius:999px;padding:.15rem .55rem;margin:0;color:var(--ink);background:#fff}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Marathi OCR human review</h1>
+    <div class="meta">Human is the authority. OCR is only assistance. Offline localhost only.</div>
+  </div>
+  <div class="meta" id="progress">Loading…</div>
+</header>
+<main>
+  <section class="panel">
+    <h2>Crop and page context</h2>
+    <div class="ids" id="ids"></div>
+    <div class="badge-row" id="badges"></div>
+    <div class="img-wrap"><img id="crop" alt="line crop"></div>
+    <h2>Page context</h2>
+    <div class="img-wrap"><img id="context" alt="page context"></div>
+    <div class="hint">
+      Red box marks the stored physical-line bbox. Do not reconstruct a whole sentence.
+    </div>
+  </section>
+  <section class="panel">
+    <h2>OCR candidates</h2>
+    <div id="ocr"></div>
+    <div class="consensus" id="consensus"></div>
+    <div class="actions">
+      <button class="ok" id="btn-verify" type="button">Approve (V)</button>
+      <button class="primary" id="btn-correct" type="button">Edit (C)</button>
+      <button class="danger" id="btn-reject" type="button">Reject (R)</button>
+      <button class="warn" id="btn-boundary" type="button">⚠ Bad boundary (B)</button>
+    </div>
+    <label for="text">Editable transcription (used for verified / corrected)</label>
+    <textarea id="text" spellcheck="false"></textarea>
+    <div class="hint">
+      The typed text is human_verified_text. Storage form is NFC with ends trimmed.
+    </div>
+    <div class="stored" id="stored" hidden></div>
+    <label for="notes">Optional reviewer note</label>
+    <input id="notes" type="text" spellcheck="false">
+    <div class="tags" id="tags"></div>
+    <div class="nav">
+      <button type="button" id="btn-prev">Previous (P)</button>
+      <button type="button" id="btn-next">Next (N)</button>
+      <button class="primary" type="button" id="btn-save">Save decision</button>
+    </div>
+    <div class="error" id="error"></div>
+    <div class="hint">
+      Shortcuts: V verified · C corrected · R reject · B bad boundary · N next · P previous
+    </div>
+  </section>
+</main>
+<script>
+const TAGS=["matra_error","conjunct_error","numeral_error","punctuation_error","hallucination","truncation","empty_output","table_fragment","border_fragment","merged_lines","split_line","non_text","unclear"];
+let state={items:[],index:0,current:null,decision:null};
+function esc(value){return String(value??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;")}
+async function api(path,options){const response=await fetch(path,options);const data=await response.json();if(!response.ok)throw new Error(data.error||response.statusText);return data}
+function renderTags(){document.getElementById("tags").innerHTML=TAGS.map(tag=>`<label class="tag"><input type="checkbox" value="${esc(tag)}"> ${esc(tag)}</label>`).join("")}
+function selectedTags(){return Array.from(document.querySelectorAll("#tags input:checked")).map(el=>el.value)}
+function setDecision(label){state.decision=label;document.getElementById("error").textContent="";if(label==="rejected"||label==="bad_boundary"){document.getElementById("stored").hidden=true}else{updateStored()}}
+function updateStored(){const raw=document.getElementById("text").value;const stored=raw.normalize("NFC").replace(/^\s+|\s+$/g,"");const box=document.getElementById("stored");if(!stored){box.hidden=true;return}box.hidden=false;box.textContent="Stored form preview: "+stored}
+function fillOcr(sample){
+  const root=document.getElementById("ocr");
+  const backends=(sample.predictions&&typeof sample.predictions==="object")?Object.entries(sample.predictions).map(([name,text])=>[name,text,sample[name+"_confidence"]]):[["IndicOCR",sample.indicocr_text,sample.indicocr_confidence],["Chitrapathak",sample.chitrapathak_text,sample.chitrapathak_confidence],["Tesseract",sample.tesseract_text,sample.tesseract_confidence]];
+  root.innerHTML=backends.map(([name,text,conf],idx)=>{
+    const empty=text==="";
+    const body=empty?'<div class="ocr-text empty">(empty transcription)</div>':`<div class="ocr-text">${esc(text)}</div>`;
+    const confLabel=(conf===null||conf===undefined)?"confidence: null":`confidence: ${esc(conf)}`;
+    return `<div class="ocr-card"><div style="display:flex;justify-content:space-between;gap:.5rem;font-size:.85rem;color:var(--muted)"><strong>${esc(name)}</strong><span>${confLabel}</span></div>${body}<button type="button" data-fill="${idx}">Use as draft text</button></div>`;
+  }).join("");
+  root.querySelectorAll("button[data-fill]").forEach(button=>{button.addEventListener("click",()=>{const idx=Number(button.getAttribute("data-fill"));document.getElementById("text").value=backends[idx][1]??"";updateStored()})});
+  const cons=document.getElementById("consensus");
+  const proposed=sample.proposed_consensus||sample.suggestion||"";
+  const counts=`${sample.models_agreed??"?"} of ${sample.models_configured??"?"} models agree`;
+  const reason=sample.decision_reason||"The suggestion is not human-verified.";
+  const status=sample.data_status||"needs_human_review";
+  cons.innerHTML=`<strong>PROPOSED TRANSCRIPTION — NOT VERIFIED</strong><div class="ocr-text">${proposed?esc(proposed):"<span class='empty'>null</span>"}</div><div class="hint">${esc(counts)}. Status: ${esc(status)}. ${sample.gold?"Previously human-verified.":"Not human-verified."} ${esc(reason)}</div>${proposed?'<button type="button" id="use-consensus">Use as draft text</button>':""}`;
+  const use=document.getElementById("use-consensus");
+  if(use)use.onclick=()=>{document.getElementById("text").value=proposed;updateStored()};
+}
+async function show(index){
+  state.index=index;const item=state.items[index];
+  if(!item){document.getElementById("progress").textContent="Batch complete";return}
+  const sample=await api("/api/sample/"+encodeURIComponent(item.crop_id));
+  state.current=sample;state.decision=sample.decision_label||null;
+  document.getElementById("progress").textContent=`Sample ${index+1} / ${state.items.length} · reviewed ${sample.reviewed_count} · pending ${sample.pending_count}`;
+  document.getElementById("ids").innerHTML=[["document",sample.document_id],["page",sample.page_id],["region",sample.region_id],["line",sample.line_id],["crop",sample.crop_id],["priority",sample.review_priority+" · rank "+sample.priority_rank]].map(([k,v])=>`<div><strong>${esc(k)}</strong><br><code>${esc(v)}</code></div>`).join("");
+  document.getElementById("badges").innerHTML=[`<span class="badge">risk ${esc(sample.review_risk_score)} (heuristic, not correctness)</span>`,`<span class="badge">${esc(sample.agreement_category)}</span>`,...(sample.flags||[]).map(flag=>`<span class="badge warn">${esc(flag)}</span>`),sample.already_reviewed?`<span class="badge danger">already reviewed</span>`:""].join("");
+  document.getElementById("crop").src=sample.crop_url+"?t="+Date.now();
+  document.getElementById("context").src=sample.context_url+"?t="+Date.now();
+  fillOcr(sample);
+  document.getElementById("text").value=sample.draft_text||"";
+  document.getElementById("notes").value=sample.notes||"";
+  document.querySelectorAll("#tags input").forEach(el=>{el.checked=(sample.error_tags||[]).includes(el.value)});
+  updateStored();document.getElementById("error").textContent="";
+}
+async function save(){
+  if(!state.current)return;
+  if(!state.decision){document.getElementById("error").textContent="Choose a decision first.";return}
+  const payload={crop_id:state.current.crop_id,decision:state.decision,gold_text:document.getElementById("text").value,selected_candidate_text:document.getElementById("text").value,notes:document.getElementById("notes").value||null,error_tags:selectedTags()};
+  try{await api("/api/decision",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});await bootstrap(state.index+1)}
+  catch(err){document.getElementById("error").textContent=String(err.message||err)}
+}
+async function bootstrap(preferredIndex){
+  const data=await api("/api/queue");state.items=data.items;let index=0;
+  if(typeof preferredIndex==="number"&&preferredIndex<state.items.length)index=preferredIndex;else index=data.next_index;
+  if(index>=state.items.length)index=Math.max(0,state.items.length-1);
+  await show(index);
+}
+document.getElementById("btn-verify").onclick=()=>setDecision("human_verified");
+document.getElementById("btn-correct").onclick=()=>setDecision("human_corrected");
+document.getElementById("btn-reject").onclick=()=>setDecision("rejected");
+document.getElementById("btn-boundary").onclick=()=>setDecision("bad_boundary");
+document.getElementById("btn-save").onclick=save;
+document.getElementById("btn-next").onclick=()=>show(Math.min(state.items.length-1,state.index+1));
+document.getElementById("btn-prev").onclick=()=>show(Math.max(0,state.index-1));
+document.getElementById("text").addEventListener("input",updateStored);
+document.addEventListener("keydown",(event)=>{
+  if(event.target.matches("textarea, input"))return;
+  const key=event.key.toLowerCase();
+  if(key==="v")setDecision("human_verified");
+  if(key==="c")setDecision("human_corrected");
+  if(key==="r")setDecision("rejected");
+  if(key==="b")setDecision("bad_boundary");
+  if(key==="n")show(Math.min(state.items.length-1,state.index+1));
+  if(key==="p")show(Math.max(0,state.index-1));
+  if(key==="enter"&&(event.metaKey||event.ctrlKey))save();
+});
+renderTags();bootstrap();
+</script>
+</body>
+</html>

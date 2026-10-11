@@ -1,0 +1,11 @@
+# Canonical evaluation. Primary metric is strict CER from evaluation/core_metrics.py.
+# Content CER, punctuation, matra, conjunct, and numeral scores are diagnostics.
+# Checkpoint selection uses the development validation split.
+# data/eval_data is the final 100-line exam and is not a selection input.
+
+primary_metric: cer
+goal: minimize
+device: auto
+frozen_benchmark: data/eval_data
+pipeline_version: marathi_piecewise_canonical_v1
+metric_version: marathi_ocr_eval_v2

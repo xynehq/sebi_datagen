@@ -1,0 +1,17 @@
+# Markers that indicate an administrative / reference-ID style span.
+markers:
+  - "प्र.क्र."
+  - "प्र.क्र"
+  - "जा.क्र."
+  - "का."
+  - "दि."
+  - "शा.नि."
+  - "शासन निर्णय"
+  - "अधिसूचना"
+  - "अनौ.संदर्भ"
+  - "क्र."
+
+# If a sample contains any marker OR a dense numeral+punct pattern, it is
+# treated as containing a reference-ID for denominator purposes.
+require_marathi_digit: true
+dense_punct_chars: "/-."

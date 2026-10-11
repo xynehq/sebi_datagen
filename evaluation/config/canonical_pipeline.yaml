@@ -1,0 +1,54 @@
+# Frozen Marathi OCR evaluation pipeline (canonical).
+#
+# Verified on the immutable 100-image validation set with
+# checkpoints/data/marathi_all_real_d.ckpt.
+#
+# Do NOT change these values to chase scores.
+# Do NOT use GT during inference, segmentation, joining, or decoding.
+# Overlap is experimental-only and is NOT part of this pipeline.
+
+pipeline_version: marathi_piecewise_canonical_v1
+metric_version: marathi_ocr_eval_v1
+normalization_version: strict_v1+nfc_ws_diagnostic_v1
+
+inference:
+  mode: piecewise
+  piece_target_aspect: 3.0
+  join_mode: boundary_aware
+  piece_overlap_px: 0
+  batch_size: 1
+  tta: false
+  # Model input geometry is read from the checkpoint; documented here for clarity.
+  documented_img_size: [32, 128]
+  documented_max_label_length: 50
+
+policies:
+  use_gt_for_inference: false
+  use_gt_for_segmentation: false
+  use_gt_for_joining: false
+  allow_overlap_in_canonical: false
+  primary_metrics_are_strict: true
+  content_without_whitespace_is_diagnostic_only: true
+  whitespace_normalized_is_diagnostic_only: true
+
+# Reference measurements for the frozen Run-D checkpoint on the frozen 100 set.
+# Used for documentation / optional regression checks — not training targets.
+reference_baseline:
+  checkpoint: checkpoints/data/marathi_all_real_d.ckpt
+  dataset_sample_count: 100
+  whole_line_cer: 0.8233
+  piecewise_ar3:
+    strict_cer: 0.2456
+    content_without_whitespace_cer: 0.1556
+    wer: 0.9649
+    exact_match_count: 0
+    inference_errors: 0
+
+description: |
+  ORIGINAL IMAGE
+    → image validation
+    → high-res piece segmentation (whitespace-aware cuts)
+    → no overlap
+    → per-piece OCR (checkpoint preprocess / tokenizer / decoder unchanged)
+    → deterministic boundary-aware join
+    → STRICT evaluation + secondary diagnostics

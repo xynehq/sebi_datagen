@@ -1,0 +1,70 @@
+# Where text is. This stage does not read the text.
+# Uncertain geometry is labeled unknown and sent to review.
+#
+# Phase 4 uses the block-gap settings to find regions.
+# Phase 5 uses the physical-line settings below. Morph kernels stay unused.
+
+method: projection_blocks
+min_line_height_px: 8
+max_line_height_px: 200
+min_line_width_px: 40
+binarization: adaptive
+adaptive_block_size: 35
+adaptive_c: 15
+morph_kernel_width: 25
+morph_kernel_height: 3
+uncertain_region_type: unknown
+
+# Gaps inside one text line stay together. Wider gaps can separate regions.
+intra_line_gap_px: 4
+# Minimum gap that may split regions, and the widest gap that can still stay inside one block.
+block_gap_y_px: 28
+max_block_gap_px: 64
+# A gap splits a block when it exceeds this multiple of the page's usual line spacing.
+spacing_split_ratio: 2.5
+# Horizontal gap that splits columns. Word spaces are smaller than this.
+column_gap_px: 80
+min_region_width_px: 12
+min_region_height_px: 8
+min_region_ink_px: 30
+padding_px: 6
+row_ink_tolerance: 3
+absolute_ink_gray: 70
+ink_max_gray: 210
+rule_min_length_px: 100
+rule_min_length_fraction: 0.35
+table_min_h_rules: 2
+table_min_v_rules: 2
+table_max_rule_gap_px: 280
+frame_page_fraction: 0.9
+border_margin_px: 36
+
+# Empty rows below this stay inside one printed line. Larger gaps start a new line.
+line_split_gap_px: 8
+line_padding_px: 3
+min_physical_line_width_px: 10
+min_physical_line_height_px: 6
+min_physical_line_ink_px: 12
+# A short, nearly full-width band with one dense row is a ruling line, not text.
+rule_band_max_height_px: 22
+rule_band_min_width_fraction: 0.72
+rule_band_min_row_fill: 0.80
+# A ruling band is dense on only a few rows. A symbol row fills many rows.
+rule_band_busy_fill: 0.22
+rule_band_max_busy_rows: 6
+# Thin rows this dense are blanked before the projection so they cannot glue two lines.
+rule_suppress_max_height_px: 8
+rule_suppress_row_fill: 0.60
+# A row with less ink than this fraction of the region width is a gap, not text.
+line_row_empty_fraction: 0.02
+vertical_rule_min_region_px: 120
+vertical_rule_min_run_px: 80
+vertical_rule_min_fraction: 0.40
+# A short fragment this close to one taller line is part of that line (matra or headline).
+matra_band_max_height_px: 12
+matra_merge_gap_px: 14
+# Bands taller than this are split again on a smaller gap.
+tall_line_px: 90
+# Line rows use region indexes at and above this base so they do not reuse block ids.
+line_region_index_base: 5000
+debug_images: false

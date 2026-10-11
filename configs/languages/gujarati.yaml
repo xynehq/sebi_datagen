@@ -1,0 +1,9 @@
+language: gujarati
+script: Gujarati
+tesseract_lang: guj+eng
+prompt: Transcribe the line exactly as it appears.
+data_dir: data/gujarati
+runs_dir: runs/gujarati
+reports_dir: reports/gujarati
+adapters_dir: models/adapters/gujarati
+# Language support of a checkpoint is unknown unless the model metadata says so.

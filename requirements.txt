@@ -1,0 +1,11 @@
+PyYAML>=6.0
+numpy>=1.26
+Pillow>=10
+pypdfium2>=4.30
+torch
+torchvision
+pytorch-lightning>=2.4
+huggingface_hub>=0.26
+timm
+pytest>=8.0
+ruff>=0.6

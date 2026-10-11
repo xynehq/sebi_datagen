@@ -1,0 +1,43 @@
+# Local OCR only. Model files are never downloaded.
+# Empty model_path means that backend cannot run until the operator sets it
+# here or through INDICOCR_MODEL_PATH / CHITRAPATHAK_MODEL_PATH.
+# Each backend may be enabled alone. A backend failure does not delete
+# candidates already written by another backend.
+
+enabled_backends:
+  - tesseract
+  - indicocr
+  - chitrapathak
+
+device: auto
+dtype: float32
+batch_size: 1
+max_image_size: 4096
+concurrency: 1
+
+tesseract:
+  cmd: tesseract
+  lang: mar+eng
+  psm: 7
+  device: cpu
+  batch_size: 1
+  dtype: float32
+  max_image_size: 4096
+  concurrency: 1
+
+indicocr:
+  model_path: null
+  device: auto
+  batch_size: 1
+  # bfloat16 matches the checkpoint and fits a 16 GB machine. float32 does not.
+  dtype: bfloat16
+  max_image_size: 4096
+  concurrency: 1
+
+chitrapathak:
+  model_path: null
+  device: auto
+  batch_size: 1
+  dtype: bfloat16
+  max_image_size: 4096
+  concurrency: 1

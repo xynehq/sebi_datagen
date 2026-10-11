@@ -1,0 +1,24 @@
+# Human review is the authority.
+# high_confidence_random_audit is the fraction used before the min/max caps.
+# For a large high-confidence pool the cap keeps the audit between 500 and 1000.
+# A smaller pool is sampled in full when it is below the minimum.
+
+high_confidence_random_audit: 0.05
+audit_min_samples: 500
+audit_max_samples: 1000
+random_seed: 3407
+
+# Local pilot reviewer identity. Not personal data.
+reviewer_id: local_reviewer
+
+# Stratified calibration batch. P0 null means take every P0 row.
+calibration_batch_size: 600
+calibration_tier_quota:
+  P0: null
+  P1: 280
+  P2: 150
+  P3: 150
+
+# Offline review app binds to localhost only.
+host: 127.0.0.1
+port: 8765

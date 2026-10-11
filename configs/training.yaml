@@ -1,0 +1,14 @@
+# PARSeq fine-tuning. The orchestrator reads this together with configs/pipeline.yaml.
+# Set base_checkpoint here, in configs/local.yaml, or with CHECKPOINT.
+
+backend: parseq
+primary_metric: cer
+epochs: 10
+batch_size: 8
+learning_rate: 0.0001
+device: auto
+base_checkpoint: ""
+seed: 3407
+# Unset steps means epochs × batches. val_checks spreads validation across them.
+steps:
+val_checks: 10

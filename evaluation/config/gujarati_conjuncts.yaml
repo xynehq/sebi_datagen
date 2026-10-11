@@ -1,0 +1,66 @@
+# Gujarati conjunct / jodakshar patterns derived from the frozen
+# gujrati dataset/special_chars_expansion.jsonl (100 samples).
+#
+# Detection uses Unicode virama (્, U+0ACD) sequences C+્+C(+્+C)*.
+# Patterns below are GT-attested sequences with count >= 2.
+# Do NOT reuse Marathi Devanagari conjunct lists.
+
+patterns:
+  - ન્ટ્ર
+  - શ્ર
+  - ત્ર
+  - પ્ર
+  - ન્ટ
+  - ર્ગ
+  - ક્ર
+  - ર્ટ
+  - ર્મ
+  - ન્સ
+  - ધ્ય
+  - ર્ય
+  - દ્વ
+  - પ્લ
+  - ક્ષ
+  - ખ્ય
+  - ટ્ર
+  - ર્ડ
+  - ડ્ય
+  - સ્ત
+  - શ્ચ
+  - ન્ડ
+  - ર્ષ
+  - ગ્ર
+  - ક્ત
+  - દ્ય
+  - ર્થ
+  - ન્ય
+  - ર્શ
+  - સ્ટ
+  - ટ્સ
+  - સ્થ
+  - ર્વ
+  - ત્ય
+  - ત્ત
+  - દ્ધ
+  - ર્ત
+  - ન્વ
+  - ન્ફ
+  - ષ્ટ
+  - લ્સ
+  - ક્ટ
+  - ર્ચ
+  - લ્ય
+  - ક્સ
+  - ક્વ
+  - જ્ય
+  - ર્ક
+  - સ્સ
+  - લ્લ
+  - બ્ધ
+  # Additional GT-attested singles (count 1) kept for coverage
+  - જ્ઞ
+  - સ્વ
+  - ત્વ
+  - ન્દ્ર
+  - સ્ત્ર
+  - ષ્ટ્ર

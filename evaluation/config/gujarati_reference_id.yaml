@@ -1,0 +1,18 @@
+# Gujarati administrative / circular reference-ID markers.
+# Attested in frozen gujrati dataset (ક્રમાંક, તા., પરિપત્ર, …).
+# Marathi markers (प्र.क्र. etc.) are intentionally excluded.
+
+markers:
+  - "ક્રમાંક"
+  - "ક્રમાંંક"
+  - "ક્રમાન્ક"
+  - "પરિપત્ર"
+  - "તા."
+  - "તા.-"
+  - "સીટીએસ"
+  - "જા.ક્ર"
+  - "પ્ર.ક્ર"
+
+# Gujarati digits required for dense-pattern fallback.
+require_native_digit: true
+dense_punct_chars: "/-."

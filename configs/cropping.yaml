@@ -1,0 +1,23 @@
+# Crop geometry. These settings do not assign text labels.
+# Partial crops exist to add visual variety. Their gold text must match
+# only the glyphs inside the crop, after a person has looked at the image.
+# multi_line stays off unless a later run turns it on deliberately.
+
+full_line: true
+partial: true
+multi_line: false
+random_seed: 3407
+max_partial_per_line: 4
+
+left:
+  min_width_fraction: 0.45
+  max_width_fraction: 0.80
+right:
+  min_width_fraction: 0.45
+  max_width_fraction: 0.80
+middle:
+  min_width_fraction: 0.35
+  max_width_fraction: 0.70
+random:
+  min_width_fraction: 0.35
+  max_width_fraction: 0.80

@@ -1,0 +1,8 @@
+"""Run the pipeline CLI with ``python -m indic_ocr_pipeline``."""
+
+from __future__ import annotations
+
+from pipeline.cli import main
+
+if __name__ == "__main__":
+    raise SystemExit(main())

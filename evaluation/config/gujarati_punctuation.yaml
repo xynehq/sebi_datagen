@@ -1,0 +1,30 @@
+# Punctuation inventory for Gujarati OCR evaluation.
+# Derived from frozen gujrati dataset GT (plus shared ASCII punct).
+# Bullet • appears in GT; included here. Devanagari danda is NOT assumed.
+
+characters:
+  - "."
+  - ","
+  - "/"
+  - "-"
+  - "—"
+  - ":"
+  - ";"
+  - "("
+  - ")"
+  - "["
+  - "]"
+  - "{"
+  - "}"
+  - "*"
+  - "%"
+  - "₹"
+  - '"'
+  - "'"
+  - "!"
+  - "?"
+  - "&"
+  - "|"
+  - "•"
+  - "“"
+  - "”"

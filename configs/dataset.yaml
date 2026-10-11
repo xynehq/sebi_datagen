@@ -1,0 +1,35 @@
+# Gold export and document-level splits.
+# Crops from one source document stay in one split.
+
+split:
+  train: 0.8
+  val: 0.1
+  test: 0.1
+  seed: 3407
+
+export_formats:
+  - provenance
+  - simple
+
+gold_statuses:
+  - human_verified
+  - human_corrected
+
+diversity_warnings:
+  department_share: 0.50
+  document_share: 0.20
+  partial_crop_ratio_low: 0.05
+  partial_crop_ratio_high: 0.90
+
+# Every fail switch stays on. The loader rejects a config that turns one off.
+quality_gate:
+  fail_on_document_leakage: true
+  fail_on_parent_line_leakage: true
+  fail_on_invalid_unicode: true
+  fail_on_missing_images: true
+  fail_on_missing_labels: true
+  fail_on_duplicate_sample_ids: true
+  fail_on_conflicting_gold_labels: true
+  fail_on_unverified_candidates: true
+  fail_on_rejected_samples: true
+  fail_on_missing_provenance: true

@@ -1,0 +1,40 @@
+# Frozen Gujarati OCR evaluation pipeline (canonical).
+#
+# Geometry mirrors marathi_piecewise_canonical_v1 for fair cross-checkpoint
+# comparison within the PARSeq family. Script-specific metric inventories
+# live in gujarati_*.yaml / language_profiles.py — not here.
+#
+# Do NOT change these values to chase scores.
+# Do NOT use GT during inference, segmentation, joining, or decoding.
+
+pipeline_version: gujarati_piecewise_canonical_v1
+metric_version: gujarati_ocr_eval_v1
+normalization_version: strict_v1+nfc_ws_diagnostic_v1
+
+inference:
+  mode: piecewise
+  piece_target_aspect: 3.0
+  join_mode: boundary_aware
+  piece_overlap_px: 0
+  batch_size: 1
+  tta: false
+  documented_img_size: [32, 128]
+  documented_max_label_length: 50
+
+policies:
+  use_gt_for_inference: false
+  use_gt_for_segmentation: false
+  use_gt_for_joining: false
+  allow_overlap_in_canonical: false
+  primary_metrics_are_strict: true
+  content_without_whitespace_is_diagnostic_only: true
+  whitespace_normalized_is_diagnostic_only: true
+
+description: |
+  ORIGINAL IMAGE
+    → image validation
+    → high-res piece segmentation (whitespace-aware cuts)
+    → no overlap
+    → per-piece OCR (checkpoint preprocess / tokenizer / decoder unchanged)
+    → deterministic boundary-aware join
+    → STRICT evaluation + secondary diagnostics (Gujarati inventories)

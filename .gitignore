@@ -1,0 +1,43 @@
+.venv/
+venv/
+*.egg-info/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.DS_Store
+tree.txt
+
+.env
+configs/local.yaml
+
+# Local weights and training outputs. Do not push these.
+# Engine source lives in models/IndicPhotoOCR, models/chitrapathak, and models/tesseract.
+models/**/weights/
+models/registry.json
+models/cache/
+lightning_logs/
+checkpoints/
+**/checkpoints/
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+wandb/
+
+# Source documents, renders, crops, predictions, review files, and exports.
+data/
+input/
+
+# Generated ledgers, reports, and pipeline runs.
+manifests/*.jsonl
+manifests/*.lock
+manifests/*.tmp
+reports/
+runs/
+
+# Frozen exam images stay on the machine that runs evaluation.
+frozen/

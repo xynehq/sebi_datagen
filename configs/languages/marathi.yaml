@@ -1,0 +1,4 @@
+language: marathi
+script: Devanagari
+tesseract_lang: mar+eng
+prompt: Transcribe the line exactly as it appears.

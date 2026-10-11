@@ -1,0 +1,14 @@
+# Ranking weights for review priority.
+# The resulting confidence_score is not a probability that the text is correct.
+# Crossing high_confidence_threshold can mark a row auto_approved_candidate.
+# That status is still not gold.
+
+score_meaning: ranking_not_probability
+high_confidence_threshold: 0.85
+
+weights:
+  agreement: 0.45
+  tesseract_confidence: 0.15
+  image_quality: 0.15
+  crop_geometry: 0.10
+  unicode_sanity: 0.15

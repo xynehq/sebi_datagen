@@ -1,0 +1,13 @@
+# Copy to configs/local.yaml. That file is gitignored.
+# Environment variables override these values: DATA_ROOT, MODEL_ROOT,
+# CHECKPOINT, CUDA_VISIBLE_DEVICES.
+
+paths:
+  data_dir: data
+
+training:
+  base_checkpoint: ""
+  device: auto
+
+gpu:
+  cuda_visible_devices: ""

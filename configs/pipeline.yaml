@@ -1,0 +1,86 @@
+# Canonical pipeline configuration.
+# Dataset stages read source, paths, safety, logging, and random_seed.
+# The orchestrator also reads execution, runtime, calibration, training,
+# evaluation, gpu, and ocr.backends. Paths are relative to the repository root.
+# Machine-specific values belong in configs/local.yaml or the environment:
+# DATA_ROOT, MODEL_ROOT, CHECKPOINT, CUDA_VISIBLE_DEVICES.
+
+source:
+  documents_dir: data/raw/documents
+
+paths:
+  rendered_pages_dir: data/rendered/pages
+  regions_dir: data/detected/regions
+  crops_full_dir: data/crops/full
+  crops_partial_dir: data/crops/partial
+  crops_review_dir: data/crops/review
+  predictions_dir: data/predictions
+  scoring_dir: data/scoring
+  review_dir: data/review
+  verified_accepted_dir: data/verified/accepted
+  verified_corrected_dir: data/verified/corrected
+  verified_rejected_dir: data/verified/rejected
+  gold_dir: data/gold
+  splits_dir: data/splits
+  manifests_dir: manifests
+  reports_dir: reports
+
+safety:
+  # Completed renders, crops, and manifests are kept.
+  overwrite_existing_outputs: false
+  # The loader rejects true. No stage may open a network connection.
+  allow_network: false
+
+logging:
+  level: INFO
+
+# Shared default seed. Stage files may set their own seeds.
+random_seed: 3407
+
+execution:
+  mode: production
+
+runtime:
+  require_gpu: false
+  require_tesseract: false
+  require_ocr_models: false
+
+ocr:
+  backends:
+    - indicocr
+    - chitrapathak
+    - tesseract
+
+calibration:
+  seed: 3407
+  rates:
+    ALL_3_AGREE: 0.05
+    TWO_AGREE: 0.20
+    ALL_DIFFER: 1.0
+    EMPTY: 1.0
+    BAD_BOUNDARY: 1.0
+
+training:
+  backend: parseq
+  primary_metric: cer
+  epochs: 10
+  batch_size: 8
+  learning_rate: 0.0001
+  device: auto
+  base_checkpoint: ""
+  train_manifest: data/datasets/train.jsonl
+  val_manifest: data/datasets/val.jsonl
+  # Optimizer-step budget. Leave unset to use epochs × batches.
+  # Validation is spread across that budget. 1000 steps and 10 checks
+  # validate at steps 100, 200, ..., 1000. Frozen-100 is not used here.
+  steps:
+  val_checks: 10
+
+evaluation:
+  primary_metric: cer
+  device: auto
+  frozen_once: true
+  frozen_benchmark: data/eval_data
+
+gpu:
+  cuda_visible_devices: ""
