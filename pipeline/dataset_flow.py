@@ -140,6 +140,8 @@ def export_datasets(root: Path, config: dict[str, Any]) -> dict[str, int]:
             frozen_dir=frozen_dir,
         )
     paths = config.get("paths") or {}
+    length_cfg = dataset_cfg if isinstance(dataset_cfg, dict) else {}
+    grouped = _apply_label_length(root, grouped, length_cfg)
     train_path = root / paths.get("train_manifest", "data/datasets/train.jsonl")
     write_jsonl(root / paths.get("val_manifest", "data/datasets/val.jsonl"), grouped["val"])
     write_jsonl(root / "data" / "datasets" / "test.jsonl", grouped["test"])
@@ -216,6 +218,94 @@ def export_datasets(root: Path, config: dict[str, Any]) -> dict[str, int]:
         "auto_accepted": len(auto),
         "train_auto": train_auto,
     }
+
+
+def _apply_label_length(
+    root: Path,
+    grouped: dict[str, list[dict[str, Any]]],
+    dataset_cfg: dict[str, Any],
+) -> dict[str, list[dict[str, Any]]]:
+    """Split gold lines so the written dataset obeys the character limits."""
+    from pipeline.label_length import compact_label, plan_pieces, policy_from_config
+
+    policy = policy_from_config(dataset_cfg)
+    names = [name for name, rows in grouped.items() for _row in rows]
+    rows = [row for rows in grouped.values() for row in rows]
+    texts = [str(row.get("expected_text") or row.get("gold_text") or "") for row in rows]
+    planned = plan_pieces(texts, policy)
+    limited = {name: [] for name in grouped}
+    for name, row, pieces, text in zip(names, rows, planned, texts, strict=True):
+        units = compact_label(text)
+        if (
+            len(pieces) == 1
+            and pieces[0].start == 0
+            and pieces[0].end == len(units)
+            and pieces[0].length < policy.short_below
+        ):
+            limited[name].append(row)
+            continue
+        for piece in pieces:
+            limited[name].append(
+                _span_row(root, row, piece.text, piece.start, piece.end, len(units))
+            )
+    stored = [row for rows in limited.values() for row in rows]
+    if stored:
+        lengths = [
+            len(compact_label(str(row.get("expected_text") or row.get("gold_text") or "")))
+            for row in stored
+        ]
+        short = sum(length < policy.short_below for length in lengths)
+        print(
+            "label length: "
+            f"{len(stored)} samples, "
+            f"{short / len(stored):.0%} under {policy.short_below} characters, "
+            f"max {max(lengths)}",
+            flush=True,
+        )
+    return limited
+
+
+def _span_row(
+    root: Path,
+    row: dict[str, Any],
+    text: str,
+    start: int,
+    end: int,
+    total: int,
+) -> dict[str, Any]:
+    item = dict(row)
+    item["gold_text"] = text
+    item["expected_text"] = text
+    item["human_verified_text"] = text
+    if start == 0 and end == total:
+        return item
+    rel = _write_span_image(root, row, start, end, total)
+    item["crop_path"] = rel
+    item["image_filename"] = rel
+    item["sample_id"] = f"{row.get('sample_id')}_{start}"
+    item["crop_id"] = f"{row.get('crop_id')}_C{start:03d}"
+    return item
+
+
+def _write_span_image(root: Path, row: dict[str, Any], start: int, end: int, total: int) -> str:
+    from PIL import Image
+
+    source_name = str(row.get("crop_path") or row.get("image_filename") or "")
+    source = Path(source_name)
+    if not source.is_absolute():
+        source = root / source
+    rel = f"data/datasets/spans/{row.get('crop_id')}_{start}_{end}.png"
+    dest = root / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with Image.open(source) as image:
+        rgb = image.convert("RGB")
+        width, height = rgb.size
+        x0 = round(start / total * width)
+        x1 = round(end / total * width)
+        x0 = max(0, min(width - 1, x0))
+        x1 = max(x0 + 1, min(width, x1))
+        rgb.crop((x0, 0, x1, height)).save(dest)
+    return rel
 
 
 def _touches_frozen(row: dict[str, Any], frozen_ids: set[str]) -> bool:

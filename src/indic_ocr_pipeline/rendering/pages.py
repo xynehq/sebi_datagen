@@ -10,7 +10,7 @@ import argparse
 import os
 import sys
 import tempfile
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from io import BytesIO
@@ -170,6 +170,7 @@ def render_documents(
     repo_root: Path | None,
     dpi: int,
     clock: Callable[[], str] | None = None,
+    page_caps: Sequence[int] | None = None,
 ) -> RenderReport:
     """Render every page of every ingested document.
 
@@ -183,7 +184,8 @@ def render_documents(
         document_rows,
         key=lambda row: str(row.get("document_id", "")),
     )
-    for raw in ordered:
+    for index, raw in enumerate(ordered):
+        cap = None if page_caps is None or index >= len(page_caps) else page_caps[index]
         stats = _render_document(
             raw,
             manifest=manifest,
@@ -192,6 +194,7 @@ def render_documents(
             dpi=dpi,
             timestamp=timestamp,
             existing_pages=existing_pages,
+            max_pages=cap,
         )
         report.add(stats)
     return report
@@ -206,6 +209,7 @@ def _render_document(
     dpi: int,
     timestamp: str,
     existing_pages: dict[str, dict[str, object]],
+    max_pages: int | None = None,
 ) -> DocumentRenderStats:
     try:
         document = DocumentRecord.from_dict(dict(raw))
@@ -222,9 +226,10 @@ def _render_document(
         stats.message = f"{exc} {RESUME_NOTE}"
         return stats
     try:
-        stats.pages = len(pdf)
-        if stats.pages < 1:
+        total_pages = len(pdf)
+        if total_pages < 1:
             raise RenderError(f"{document.document_id} has no pages. {RESUME_NOTE}")
+        stats.pages = total_pages if max_pages is None else min(total_pages, max_pages)
         for page_number in range(1, stats.pages + 1):
             page_id = make_page_id(document.document_id, page_number)
             image_path = page_png_path(
@@ -494,6 +499,26 @@ def format_report(report: RenderReport) -> str:
     return "\n".join(lines)
 
 
+def _page_caps(
+    document_rows: list[Mapping[str, object]],
+    repo_root: Path,
+) -> list[int] | None:
+    """Leading pages to render for the current dataset-size budget."""
+    from indic_ocr_pipeline.limits import dataset_size_from_env, pages_to_keep, pdf_page_count
+    from indic_ocr_pipeline.schemas import DocumentRecord
+
+    size = dataset_size_from_env()
+    if size is None:
+        return None
+    ordered = sorted(document_rows, key=lambda row: str(row.get("document_id", "")))
+    counts: list[int] = []
+    for raw in ordered:
+        document = DocumentRecord.from_dict(dict(raw))
+        source = resolve_existing_path(document.source_path, repo_root)
+        counts.append(pdf_page_count(source))
+    return pages_to_keep(counts, size)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Render pages for every document in the document manifest."""
     from indic_ocr_pipeline.config import load_settings
@@ -509,12 +534,14 @@ def main(argv: list[str] | None = None) -> int:
         settings = load_settings()
         documents = open_manifest(settings.manifests_dir, "documents")
         pages = open_manifest(settings.manifests_dir, "pages")
+        rows = documents.load()
         report = render_documents(
-            documents.load(),
+            rows,
             pages,
             settings.rendered_pages_dir,
             repo_root=settings.repo_root,
             dpi=settings.render.dpi,
+            page_caps=_page_caps(rows, settings.repo_root),
         )
     except (RenderError, ManifestConflictError, SchemaError, pdfium.PdfiumError) as exc:
         print(f"ERROR  {exc}", file=sys.stderr)

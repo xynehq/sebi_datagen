@@ -234,6 +234,7 @@ def detect_physical_lines(
     crops_dir: Path,
     settings: DetectionSettings,
     debug_dir: Path | None = None,
+    line_quota: Mapping[str, int] | None = None,
 ) -> LineReport:
     """Detect lines for every parent region, one page image at a time."""
     pages = sorted(
@@ -252,6 +253,7 @@ def detect_physical_lines(
     report = LineReport()
     current_id = ""
     stats: DocumentLineStats | None = None
+    written: dict[str, int] = {}
     for page in pages:
         document_id = str(page.get("document_id", ""))
         if document_id != current_id:
@@ -262,6 +264,12 @@ def detect_physical_lines(
         assert stats is not None
         stats.pages += 1
         page_id = str(page.get("page_id", ""))
+        remaining = None
+        if line_quota is not None:
+            allowed = line_quota.get(document_id, 0)
+            remaining = allowed - written.get(document_id, 0)
+            if remaining <= 0:
+                continue
         try:
             page_lines, skipped, heights, widths = _detect_page(
                 page,
@@ -274,7 +282,9 @@ def detect_physical_lines(
                 crops_dir=crops_dir,
                 settings=settings,
                 debug_dir=debug_dir,
+                line_limit=remaining,
             )
+            written[document_id] = written.get(document_id, 0) + len(page_lines)
         except (LineDetectionError, SchemaError, OSError, ManifestConflictError) as exc:
             stats.errors += 1
             if not stats.message:
@@ -347,6 +357,26 @@ def format_report(report: LineReport) -> str:
     return "\n".join(lines)
 
 
+def _line_quota(page_rows: Sequence[Mapping[str, object]]) -> dict[str, int] | None:
+    """Per-document line caps for the current dataset-size budget."""
+    from indic_ocr_pipeline.limits import dataset_size_from_env, line_quotas
+
+    size = dataset_size_from_env()
+    if size is None:
+        return None
+    documents: list[str] = []
+    for row in page_rows:
+        document_id = str(row.get("document_id", ""))
+        if document_id and document_id not in documents:
+            documents.append(document_id)
+    quotas = line_quotas(size, len(documents))
+    print(
+        f"dataset-size {size}: keeping {size} line(s) across {len(documents)} document(s).",
+        flush=True,
+    )
+    return dict(zip(documents, quotas, strict=True))
+
+
 def main(argv: list[str] | None = None) -> int:
     """Detect physical lines for every region in the region manifest."""
     from indic_ocr_pipeline.config import load_settings
@@ -370,11 +400,12 @@ def main(argv: list[str] | None = None) -> int:
         regions = open_manifest(settings.manifests_dir, "regions")
         line_manifest = open_manifest(settings.manifests_dir, "lines")
         crop_manifest = open_manifest(settings.manifests_dir, "crops")
+        page_rows = pages.load()
         debug_dir = None
         if args.debug or settings.detection.debug_images:
             debug_dir = settings.repo_root / "data" / "debug" / "lines"
         report = detect_physical_lines(
-            pages.load(),
+            page_rows,
             regions.load(),
             line_manifest,
             crop_manifest,
@@ -382,6 +413,7 @@ def main(argv: list[str] | None = None) -> int:
             crops_dir=settings.crops_full_dir,
             settings=settings.detection,
             debug_dir=debug_dir,
+            line_quota=_line_quota(page_rows),
         )
     except (LineDetectionError, ManifestConflictError, SchemaError) as exc:
         print(f"ERROR  {exc}", file=sys.stderr)
@@ -414,6 +446,7 @@ def _detect_page(
     crops_dir: Path,
     settings: DetectionSettings,
     debug_dir: Path | None,
+    line_limit: int | None = None,
 ) -> tuple[list[PhysicalLine], int, list[int], list[int]]:
     page_id = str(page.get("page_id", ""))
     document_id = str(page.get("document_id", ""))
@@ -444,6 +477,8 @@ def _detect_page(
             detected.extend(detect_lines_in_region(gray, box, parent_id, settings))
         except SchemaError as exc:
             raise LineDetectionError(f"{parent_id} {exc}") from exc
+    if line_limit is not None:
+        detected = list(detected)[:line_limit]
     prepared = _prepare_lines(
         detected,
         pixels,

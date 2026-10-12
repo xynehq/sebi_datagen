@@ -1,5 +1,16 @@
 # Gold export and document-level splits.
 # Crops from one source document stay in one split.
+#
+# Label length counts every character the trainer keeps, including digits.
+# Spaces are not counted. No label longer than 10 characters is written.
+# At least 95% of labels are shorter than 5 characters. Any longer label
+# is 8 to 10 characters.
+
+label_length:
+  max_characters: 10
+  short_below: 5
+  short_fraction: 0.95
+  long_min_characters: 8
 
 split:
   train: 0.8

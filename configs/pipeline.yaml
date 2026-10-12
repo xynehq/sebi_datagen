@@ -67,6 +67,8 @@ training:
   batch_size: 8
   learning_rate: 0.0001
   device: auto
+  # Empty means the published language base (downloaded on the train stage).
+  # Set CHECKPOINT or pass --checkpoint only to start from a different file.
   base_checkpoint: ""
   train_manifest: data/datasets/train.jsonl
   val_manifest: data/datasets/val.jsonl

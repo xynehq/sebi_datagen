@@ -2,7 +2,7 @@
 
 This repository turns scanned PDFs into an OCR training set, lets a person check each line, fine-tunes a recognizer, and scores that recognizer.
 
-You run it from the terminal with `./run_pipeline.sh`. It writes files on disk. It does not serve an OCR API.
+You run the whole pipeline with `./setup.sh`. It writes files on disk. It does not serve an OCR API.
 
 ```text
 PDFs
@@ -15,16 +15,15 @@ PDFs
   → scores on the validation set
 ```
 
-Three OCR models read each line: IndicOCR, Chitrapathak, and Tesseract. Their agreement is a suggestion. A line becomes training gold only after a person accepts or corrects it. Training and scoring use a PARSeq checkpoint (a `.ckpt` file).
+Three OCR models read each line: IndicOCR, Chitrapathak, and Tesseract. Their agreement is a suggestion. A line becomes training gold only after a person accepts or corrects it. Training starts from the published PARSeq base for that language and fine-tunes it for one epoch.
 
 ## What you need
 
 - Python 3.11 or newer
-- A PARSeq checkpoint you already have, for training
 - IndicOCR and Chitrapathak weights you already have, for the OCR stage
 - Tesseract on your PATH, with the language you are reading. Marathi uses `mar+eng`
 
-Setup does not download weights. Put the files on disk and point the pipeline at them.
+The train stage downloads the published language base if it is not already cached. IndicOCR and Chitrapathak are not downloaded. Put those two on disk and point `.env` at them.
 
 ## Set up
 
@@ -35,7 +34,7 @@ chmod +x setup.sh run_pipeline.sh
 ./setup.sh
 ```
 
-`./setup.sh` is safe to run again. It creates `.venv` if needed, installs this project and `requirements.txt`, and prints the device it found: CUDA, then Apple MPS, then CPU.
+`./setup.sh` creates `.venv` and installs this project only when those packages are missing. When they are already installed, it goes straight to the pipeline. It deletes generated outputs from the last run, then runs the full Marathi pipeline from the PDFs. Source PDFs in `data/raw/` stay. Running it again starts that pipeline over. It prints the device it found: CUDA, then Apple MPS, then CPU. The review page opens in the browser, and the command waits there until you confirm.
 
 Copy the environment file and fill in the paths you have:
 
@@ -46,9 +45,10 @@ cp .env.example .env
 ```bash
 INDICOCR_MODEL_PATH=/absolute/path/to/indicocr
 CHITRAPATHAK_MODEL_PATH=/absolute/path/to/chitrapathak
-CHECKPOINT=/absolute/path/to/recognizer.ckpt
 TESSERACT_CMD=tesseract
 ```
+
+Leave `CHECKPOINT` unset. `./setup.sh` always trains from the published language base. Pass `--checkpoint /path/to/file.ckpt` only when one run should start from a different file.
 
 `./setup.sh` and `./run_pipeline.sh` load `.env` when that file exists. Leave `INDIC_OCR_DEVICE` empty to auto-detect. Set it to `cuda`, `mps`, or `cpu` only when you want to force one.
 
@@ -86,12 +86,24 @@ Use more than one PDF. Splits are by document. With a single document, that docu
 
 ## Run the pipeline
 
-Completed stages are skipped when their inputs have not changed. A failed stage leaves the earlier files in place. Run the same command again to continue.
+```bash
+./setup.sh
+```
+
+That one command installs the environment, clears generated test outputs, and runs every stage on about 10 lines. Training starts from the published Marathi base. The review page opens when the lines are ready, and the command continues after you confirm.
+
+```bash
+./setup.sh --dataset-size 10
+```
+
+`--dataset-size` is the number of line crops to build. `./setup.sh` uses 10 when you leave it out. A larger number reads more of `data/raw/documents`. Omit `--dataset-size` on `./run_pipeline.sh` only when you want every PDF.
+
+`./run_pipeline.sh` runs the same stages without clearing previous outputs. Completed stages are skipped when their inputs have not changed. A failed stage leaves the earlier files in place.
 
 ### 1. Build lines up to review
 
 ```bash
-./run_pipeline.sh --language marathi --offline
+./run_pipeline.sh --language marathi
 ```
 
 This ingests the PDFs, renders pages, finds lines, runs the three OCR backends, and writes a suggested reading for each line. It stops before dataset export when no human-approved lines exist yet, and prints the review page path.
@@ -138,8 +150,8 @@ This command writes the decisions into `manifests/verified.jsonl`, then continue
 2. **Train** fine-tunes PARSeq for 1 epoch (`configs/training.yaml`). While training is running, validation runs at 30% and 70% of the steps. The checkpoint with the better score is kept.
 3. **Evaluate** scores that checkpoint on the validation set: character error rate, word error rate, and exact match.
 4. **Select** writes the chosen checkpoint to the run directory.
-5. **Frozen exam** scores `data/eval_data` once, after selection. That directory is not in this repository. The stage stops until you place the exam there. It is never used to train or to pick the checkpoint.
-6. **Report** writes `reports/final_report.html` after the frozen exam succeeds.
+5. **Frozen exam** scores `data/eval_data` once, after selection, when that directory is present. It is never used to train or to pick the checkpoint. When the exam is not on this machine, the stage is skipped and the validation scores stand.
+6. **Report** writes `reports/final_report.html`.
 
 To record the review and stop before export:
 
@@ -183,7 +195,7 @@ A line that is already recorded cannot be changed by running the command again. 
 
 `--stage dataset` runs through export and still waits for review when no gold exists. `--from ocr` starts at OCR and continues to the end. `--dry-run` prints the plan and does not run it.
 
-Pass the recognizer for one training run without editing `.env`:
+Start one training run from a file other than the published base:
 
 ```bash
 ./run_pipeline.sh --from train --checkpoint /absolute/path/to/recognizer.ckpt --offline
@@ -222,6 +234,8 @@ CLI flags override environment variables. Those override `configs/local.yaml`, t
 
 From `configs/training.yaml` and `configs/pipeline.yaml`:
 
+- Dataset labels are at most 10 characters, counting digits. At least 95% are shorter than 5. Any longer label is 8 to 10 characters (`configs/dataset.yaml`).
+- Starts from the published language base when `base_checkpoint` and `CHECKPOINT` are empty
 - 1 epoch, batch size 8, learning rate `0.0001`
 - Validation inside training at 30% and 70% of the optimizer steps
 - One more score after training, on `data/datasets/val.jsonl`
@@ -236,7 +250,7 @@ From `configs/training.yaml` and `configs/pipeline.yaml`:
 | Export or training does not start | Confirm on the review page, or run `./run_pipeline.sh --accept-proposed --reviewer operator`. |
 | `Training split is empty` | Add a second PDF. One document is reserved for validation. |
 | A model path is missing | Fix the path in `.env`. Setup does not download it. |
-| Frozen exam stops | Add the exam under `data/eval_data`, then run `./run_pipeline.sh --from frozen`. |
+| Frozen exam was skipped | Place the exam under `data/eval_data`, then run `./run_pipeline.sh --from frozen`. |
 | A recorded line cannot be changed | The first recorded accept or reject for that crop is kept. |
 
 Tests:

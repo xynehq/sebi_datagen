@@ -58,6 +58,9 @@ def _config_hash(root: Path, config: dict[str, Any], stage: Stage) -> str:
         path = root / relative
         digest.update(relative.encode())
         digest.update(_file_token(path).encode())
+    if stage.name in {"ingest", "render", "detect", "crop", "ocr", "compare"}:
+        digest.update(b"dataset_size")
+        digest.update(str(config.get("dataset_size")).encode())
     if stage.name in {"ocr", "train", "eval_checkpoints", "select", "frozen"}:
         local = root / "configs" / "local.yaml"
         digest.update(b"local")

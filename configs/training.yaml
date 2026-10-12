@@ -1,5 +1,6 @@
 # PARSeq fine-tuning. The orchestrator reads this together with configs/pipeline.yaml.
-# Set base_checkpoint here, in configs/local.yaml, or with CHECKPOINT.
+# Leave base_checkpoint empty to start from the published language base.
+# Set it here, in configs/local.yaml, or with CHECKPOINT to start from another file.
 
 backend: parseq
 primary_metric: cer

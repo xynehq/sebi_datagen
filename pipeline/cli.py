@@ -81,7 +81,21 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Optimizer-step budget for this training run.",
     )
-    parser.add_argument("--dataset-size", type=int, default=None)
+    parser.add_argument(
+        "--dataset-size",
+        type=int,
+        default=None,
+        help=(
+            "About this many line crops. Ingestion, rendering, and line detection "
+            "stop once that many can be built. Omit it to use every PDF."
+        ),
+    )
+    parser.add_argument(
+        "--datapoints",
+        type=int,
+        default=None,
+        help="Same as --dataset-size.",
+    )
     parser.add_argument("--train-ratio", type=float, default=None)
     parser.add_argument("--val-ratio", type=float, default=None)
     parser.add_argument("--resume", action="store_true", help="Skip stages already complete.")
@@ -215,6 +229,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Repository root. Defaults to the directory that contains this package.",
     )
     args = parser.parse_args(argv)
+    if args.datapoints is not None:
+        if args.dataset_size is not None and args.datapoints != args.dataset_size:
+            print("dataset-size and datapoints must be the same number", file=sys.stderr)
+            return 2
+        if args.dataset_size is None:
+            args.dataset_size = args.datapoints
     if args.dataset_size is not None and args.dataset_size < 1:
         print("dataset-size must be at least 1", file=sys.stderr)
         return 2

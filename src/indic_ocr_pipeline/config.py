@@ -185,6 +185,14 @@ class SplitSettings:
 
 
 @dataclass(frozen=True)
+class LabelLengthSettings:
+    max_characters: int
+    short_below: int
+    short_fraction: float
+    long_min_characters: int
+
+
+@dataclass(frozen=True)
 class DatasetSettings:
     split: SplitSettings
     export_formats: tuple[str, ...]
@@ -194,6 +202,7 @@ class DatasetSettings:
     partial_crop_ratio_low: float
     partial_crop_ratio_high: float
     quality_gate: dict[str, bool]
+    label_length: LabelLengthSettings
 
 
 @dataclass(frozen=True)
@@ -845,7 +854,14 @@ def _review_settings(raw: dict[str, Any]) -> ReviewSettings:
 def _dataset_settings(raw: dict[str, Any]) -> DatasetSettings:
     _reject_unknown(
         raw,
-        {"split", "export_formats", "gold_statuses", "diversity_warnings", "quality_gate"},
+        {
+            "split",
+            "export_formats",
+            "gold_statuses",
+            "diversity_warnings",
+            "quality_gate",
+            "label_length",
+        },
         "dataset.yaml",
     )
     split_raw = _mapping(raw.get("split"), "dataset.split")
@@ -889,6 +905,7 @@ def _dataset_settings(raw: dict[str, Any]) -> DatasetSettings:
     disabled = [key for key, value in gate.items() if not value]
     if disabled:
         raise ConfigError("quality gate checks cannot be disabled: " + ", ".join(disabled))
+    label_length = _label_length_settings(raw.get("label_length"))
     return DatasetSettings(
         split=SplitSettings(
             train=train,
@@ -907,6 +924,42 @@ def _dataset_settings(raw: dict[str, Any]) -> DatasetSettings:
         partial_crop_ratio_low=low,
         partial_crop_ratio_high=high,
         quality_gate=gate,
+        label_length=label_length,
+    )
+
+
+def _label_length_settings(value: object) -> LabelLengthSettings:
+    """Accept the shipped defaults when dataset.yaml omits the block."""
+    if value is None:
+        value = {
+            "max_characters": 10,
+            "short_below": 5,
+            "short_fraction": 0.95,
+            "long_min_characters": 8,
+        }
+    raw = _mapping(value, "dataset.label_length")
+    _reject_unknown(
+        raw,
+        {"max_characters", "short_below", "short_fraction", "long_min_characters"},
+        "dataset.label_length",
+    )
+    short_below = _int(raw.get("short_below"), "dataset.label_length.short_below", minimum=2)
+    long_min = _int(
+        raw.get("long_min_characters"),
+        "dataset.label_length.long_min_characters",
+        minimum=1,
+    )
+    maximum = _int(raw.get("max_characters"), "dataset.label_length.max_characters", minimum=1)
+    fraction = _unit_fraction(raw.get("short_fraction"), "dataset.label_length.short_fraction")
+    if long_min <= short_below:
+        raise ConfigError("dataset.label_length long labels must start above the short limit")
+    if maximum < long_min:
+        raise ConfigError("dataset.label_length max_characters must cover the long labels")
+    return LabelLengthSettings(
+        max_characters=maximum,
+        short_below=short_below,
+        short_fraction=fraction,
+        long_min_characters=long_min,
     )
 
 

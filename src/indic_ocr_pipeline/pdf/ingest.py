@@ -120,13 +120,17 @@ def ingest_documents(
     *,
     repo_root: Path | None = None,
     clock: Callable[[], str] | None = None,
+    max_documents: int | None = None,
 ) -> IngestReport:
     """Ingest PDFs from ``documents_dir`` into ``manifest``.
 
     Source files are only read. Known SHA-256 values keep their document ID
     and are skipped. New hashes receive the next ID from ``DocumentIdAllocator``.
+    ``max_documents`` keeps only the first PDFs in filename order.
     """
     pdfs = discover_pdfs(documents_dir)
+    if max_documents is not None:
+        pdfs = pdfs[:max_documents]
     report = IngestReport(discovered=len(pdfs))
     existing = manifest.load()
     allocator = DocumentIdAllocator.from_records(existing)
@@ -252,6 +256,28 @@ def format_report(report: IngestReport) -> str:
     return "\n".join(lines)
 
 
+def _document_cap(documents_dir: Path) -> int | None:
+    """How many leading PDFs to ingest for the current dataset-size budget."""
+    from indic_ocr_pipeline.limits import dataset_size_from_env, pages_to_keep, pdf_page_count
+
+    size = dataset_size_from_env()
+    if size is None:
+        return None
+    counts: list[int] = []
+    for path in discover_pdfs(documents_dir):
+        counts.append(pdf_page_count(path))
+        plan = pages_to_keep(counts, size)
+        if len(plan) < len(counts):
+            break
+    plan = pages_to_keep(counts, size)
+    print(
+        f"dataset-size {size}: ingesting {len(plan)} PDF(s), "
+        f"{sum(plan)} page(s).",
+        flush=True,
+    )
+    return len(plan)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Ingest PDFs from the configured documents directory."""
     from indic_ocr_pipeline.config import load_settings
@@ -273,6 +299,7 @@ def main(argv: list[str] | None = None) -> int:
             settings.documents_dir,
             manifest,
             repo_root=settings.repo_root,
+            max_documents=_document_cap(settings.documents_dir),
         )
     except (IngestError, ManifestConflictError, SchemaError) as exc:
         print(f"ERROR  {exc}", file=sys.stderr)

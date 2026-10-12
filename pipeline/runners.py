@@ -65,6 +65,26 @@ FIXTURE_CROPS: list[dict[str, Any]] = [
 ]
 
 
+def _longest_label(rows: list[dict[str, Any]]) -> int:
+    """Longest gold line after the same whitespace removal the trainer uses."""
+    longest = 1
+    for row in rows:
+        text = str(row.get("expected_text") or row.get("gold_text") or "")
+        longest = max(longest, len("".join(text.split())))
+    return longest
+
+
+def _publish_dataset_size(ctx: Ctx) -> None:
+    """Expose --dataset-size to the ingestion, render, and line-detection stages."""
+    import os
+
+    size = ctx.config.get("dataset_size")
+    if size is None:
+        os.environ.pop("DATASET_SIZE", None)
+        return
+    os.environ["DATASET_SIZE"] = str(int(size))
+
+
 class Ctx:
     def __init__(
         self,
@@ -82,6 +102,7 @@ class Ctx:
 
 
 def run_stage(ctx: Ctx) -> dict[str, Any]:
+    _publish_dataset_size(ctx)
     if ctx.config.get("execution", {}).get("fail_stage") == ctx.stage:
         raise StageFailed(ctx.stage, f"injected failure in {ctx.stage}", module="pipeline.runners")
     handler = _HANDLERS[ctx.stage]
@@ -280,6 +301,7 @@ def _train(ctx: Ctx) -> dict[str, Any]:
     checkpoint = _resolve_base_checkpoint(ctx)
     from IndicPhotoOCR.recognition.finetune import finetune
 
+    label_length = _longest_label(train_rows + val_rows)
     output = ctx.run_dir / "checkpoints" / "finetuned.ckpt"
     output.parent.mkdir(parents=True, exist_ok=True)
     device = training_cfg.get("device")
@@ -298,6 +320,8 @@ def _train(ctx: Ctx) -> dict[str, Any]:
         device=device,
         seed=int(ctx.config.get("seed", 3407)),
         limit_train_batches=1 if training_cfg.get("steps") in {1, "1"} else None,
+        max_label_length=label_length,
+        extend_charset=True,
     )
     _write_training_record(
         ctx,
@@ -393,10 +417,24 @@ def _select(ctx: Ctx) -> dict[str, Any]:
 
 
 def _frozen(ctx: Ctx) -> dict[str, Any]:
+    frozen_dir = ctx.root / ctx.config["paths"]["frozen_benchmark"]
+    if not (frozen_dir / "validation.jsonl").is_file():
+        metrics = {
+            "benchmark": "frozen100",
+            "used_for_selection": False,
+            "skipped": True,
+            "note": "data/eval_data is not on this machine, so the frozen exam was not scored.",
+        }
+        out = ctx.run_dir / "evaluation" / "frozen100" / "metrics.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(metrics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return {
+            "messages": ["frozen exam not present; validation scores stand"],
+            "row_counts": {"frozen": 0},
+        }
     best = (ctx.run_dir / "BEST_CHECKPOINT").read_text(encoding="utf-8").strip()
     board_path = ctx.run_dir / "evaluation" / "checkpoint_scoreboard.json"
     board = json.loads(board_path.read_text(encoding="utf-8"))
-    frozen_dir = ctx.root / ctx.config["paths"]["frozen_benchmark"]
     frozen_ids = load_frozen_ids(frozen_dir)
     for row in board["rows"]:
         leaked = set(row.get("sample_ids") or []) & frozen_ids
@@ -663,10 +701,13 @@ def _score_frozen_checkpoint(
 
 
 def _resolve_base_checkpoint(ctx: Ctx) -> str:
-    from pipeline.weights import WeightError, resolve_weight
+    from pipeline.weights import WeightError, published_base, resolve_weight
 
     training = ctx.config.get("training") or {}
-    spec = str(training.get("base_checkpoint") or training.get("model_root") or "")
+    spec = str(training.get("base_checkpoint") or training.get("model_root") or "").strip()
+    if not spec:
+        language = str(ctx.config.get("language") or "marathi")
+        spec = published_base(language)
     try:
         return str(resolve_weight(spec, ctx.root / "models" / "cache", expect="file"))
     except WeightError as exc:

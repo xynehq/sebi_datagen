@@ -33,6 +33,10 @@ def test_shipped_configuration(repo_root: Path) -> None:
     assert abs(sum(ratios) - 1.0) < 1e-9
     assert set(settings.dataset.gold_statuses) == {"human_verified", "human_corrected"}
     assert all(settings.dataset.quality_gate.values())
+    assert settings.dataset.label_length.max_characters == 10
+    assert settings.dataset.label_length.short_below == 5
+    assert settings.dataset.label_length.short_fraction == 0.95
+    assert settings.dataset.label_length.long_min_characters == 8
     assert settings.ocr.enabled_backends == ("tesseract", "indicocr", "chitrapathak")
     assert settings.ocr.indicocr.model_path is None
     assert settings.ocr.chitrapathak.model_path is None

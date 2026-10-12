@@ -9,6 +9,16 @@ from urllib.request import urlretrieve
 
 _FILE_SUFFIXES = {".ckpt", ".pt", ".pth", ".bin", ".safetensors"}
 _REPO = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$")
+_BASE_RELEASE = "https://github.com/anikde/STocr/releases/download/V2.0.0/{language}.ckpt"
+
+
+def published_base(language: str) -> str:
+    """Return the published PARSeq base checkpoint for a language.
+
+    This is the language release, not a later fine-tune.
+    """
+    name = (language or "marathi").strip() or "marathi"
+    return _BASE_RELEASE.format(language=name)
 
 
 class WeightError(ValueError):

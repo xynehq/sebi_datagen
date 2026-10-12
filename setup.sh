@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Repeatable environment setup. Does not download model weights.
+# Install the environment, clear generated outputs, and run the full pipeline.
+# Training starts from the published language base. A CHECKPOINT in the
+# environment is ignored so a fine-tuned file is not used as the start.
 
 set -euo pipefail
 
@@ -12,6 +14,9 @@ if [[ -f "$ROOT/.env" ]]; then
   source "$ROOT/.env"
   set +a
 fi
+
+# The published language base is the training start.
+unset CHECKPOINT
 
 py_ok() {
   "$1" - <<'PY'
@@ -34,11 +39,24 @@ if ! py_ok "$BASE"; then
   exit 1
 fi
 
-if [[ ! -x "$ROOT/.venv/bin/python" ]]; then
-  "$BASE" -m venv "$ROOT/.venv"
+env_ready() {
+  "$ROOT/.venv/bin/python" - <<'PY'
+import importlib.util
+needed = ("yaml", "PIL", "numpy", "torch", "pypdfium2", "indic_ocr_pipeline")
+raise SystemExit(0 if all(importlib.util.find_spec(name) for name in needed) else 1)
+PY
+}
+
+if [[ ! -x "$ROOT/.venv/bin/python" ]] || ! env_ready; then
+  if [[ ! -x "$ROOT/.venv/bin/python" ]]; then
+    "$BASE" -m venv "$ROOT/.venv"
+  fi
+  echo "Installing the environment."
+  "$ROOT/.venv/bin/python" -m pip install --upgrade pip
+  "$ROOT/.venv/bin/python" -m pip install -e "$ROOT"
+else
+  echo "Environment already installed."
 fi
-"$ROOT/.venv/bin/python" -m pip install --upgrade pip
-"$ROOT/.venv/bin/python" -m pip install -e "$ROOT"
 
 "$ROOT/.venv/bin/python" - <<'PY'
 import sys
@@ -67,7 +85,7 @@ mkdir -p \
   configs/languages
 
 missing=0
-for name in INDICOCR_MODEL_PATH CHITRAPATHAK_MODEL_PATH CHECKPOINT; do
+for name in INDICOCR_MODEL_PATH CHITRAPATHAK_MODEL_PATH; do
   value="${!name:-}"
   if [[ -n "$value" && ! -e "$value" ]]; then
     echo "missing ${name}: ${value}" >&2
@@ -79,4 +97,36 @@ if [[ "$missing" -ne 0 ]]; then
   exit 1
 fi
 
-echo "setup complete"
+echo "Removing generated outputs so this run starts from the PDFs."
+rm -rf \
+  runs \
+  reports \
+  lightning_logs \
+  data/crops \
+  data/rendered \
+  data/datasets \
+  data/review \
+  data/calibration \
+  data/golden \
+  data/auto_accepted \
+  data/predictions \
+  data/detected \
+  data/verified \
+  data/gold \
+  data/splits \
+  data/scoring
+find manifests -maxdepth 1 -type f \( -name '*.jsonl' -o -name '*.lock' -o -name '*.tmp' \) -delete
+
+echo "Starting the pipeline from the published base model."
+echo "The review page opens in the browser and this command waits until you confirm."
+found_size=0
+for arg in "$@"; do
+  if [[ "$arg" == "--dataset-size" || "$arg" == "--datapoints" ]]; then
+    found_size=1
+  fi
+done
+if [[ "$found_size" -eq 0 ]]; then
+  echo "Dataset size: 10 lines. Pass --dataset-size N to use another number."
+  exec "$ROOT/run_pipeline.sh" --language marathi --dataset-size 10 "$@"
+fi
+exec "$ROOT/run_pipeline.sh" --language marathi "$@"

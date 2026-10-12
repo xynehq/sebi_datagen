@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from pipeline.weights import WeightError, _parse_remote, resolve_weight
+from pipeline.weights import WeightError, _parse_remote, published_base, resolve_weight
 
 
 def test_existing_file_is_used(tmp_path: Path) -> None:
@@ -25,6 +25,11 @@ def test_existing_directory_with_one_checkpoint(tmp_path: Path) -> None:
 def test_missing_local_path_is_not_downloaded(tmp_path: Path) -> None:
     with pytest.raises(WeightError, match="does not exist"):
         resolve_weight(str(tmp_path / "missing.ckpt"), tmp_path / "cache")
+
+
+def test_empty_checkpoint_uses_published_language_base() -> None:
+    assert published_base("marathi").endswith("/marathi.ckpt")
+    assert published_base("").endswith("/marathi.ckpt")
 
 
 def test_huggingface_link_is_parsed() -> None:
