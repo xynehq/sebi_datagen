@@ -3,12 +3,13 @@
 
 backend: parseq
 primary_metric: cer
-epochs: 10
+epochs: 1
 batch_size: 8
 learning_rate: 0.0001
 device: auto
 base_checkpoint: ""
 seed: 3407
-# Unset steps means epochs × batches. val_checks spreads validation across them.
+# Unset steps means epochs × batches. Validation runs at 30% and 70% of
+# those steps, then once more in the evaluation stage after training.
 steps:
 val_checks: 10

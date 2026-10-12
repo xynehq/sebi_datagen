@@ -240,6 +240,36 @@ class _ShallowCopy(JsonlDataset):
         self.samples = samples
 
 
+class _ValidateAtFractions(pl.Callback):
+    """Validate at 30% and 70% of optimizer steps.
+
+    The score after training is a separate evaluation stage, so this callback
+    does not validate on the final step. The trainer's own end-of-epoch check
+    is turned off by the caller.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._done: set[int] = set()
+
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:
+        total = trainer.estimated_stepping_batches
+        if not isinstance(total, int) or total < 2:
+            return
+        from training.schedule import during_training_steps
+
+        step = int(trainer.global_step)
+        if step in self._done or step not in during_training_steps(total):
+            return
+        self._done.add(step)
+        epoch_loop = trainer.fit_loop.epoch_loop
+        trainer.validating = True
+        first_loop_iter = trainer._logger_connector._first_loop_iter
+        epoch_loop.val_loop.run()
+        trainer.training = True
+        trainer._logger_connector._first_loop_iter = first_loop_iter
+
+
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
@@ -418,6 +448,9 @@ def finetune(
         enable_progress_bar=True,
     )
     if val_loader is not None:
+        # Epoch-end and startup checks would add passes beyond 30% and 70%.
+        trainer_kwargs["num_sanity_val_steps"] = 0
+        trainer_kwargs["check_val_every_n_epoch"] = epochs + 1
         trainer_kwargs["callbacks"] = [
             pl.callbacks.ModelCheckpoint(
                 dirpath=os.path.dirname(os.path.abspath(output)) or ".",
@@ -426,7 +459,8 @@ def finetune(
                 mode="max",
                 save_top_k=1,
                 save_last=False,
-            )
+            ),
+            _ValidateAtFractions(),
         ]
     if limit_train_batches is not None:
         trainer_kwargs["limit_train_batches"] = limit_train_batches

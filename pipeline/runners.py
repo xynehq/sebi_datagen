@@ -260,7 +260,7 @@ def _train(ctx: Ctx) -> dict[str, Any]:
         return {
             "messages": [
                 "fixture checkpoints written",
-                f"validation every {schedule['val_check_interval']} steps",
+                _validation_message(schedule),
             ],
             "row_counts": {"checkpoints": 2, "validation_steps": len(schedule["validation_steps"])},
         }
@@ -312,7 +312,7 @@ def _train(ctx: Ctx) -> dict[str, Any]:
     return {
         "messages": [
             "completed",
-            f"validation every {schedule['val_check_interval']} steps",
+            _validation_message(schedule),
         ],
         "row_counts": {"validation_steps": len(schedule["validation_steps"])},
     }
@@ -535,6 +535,15 @@ def _human(
         "metadata": {"decision_label": decision, "review_origin": "human"},
         "original_candidate_texts": {"indicocr": text, "chitrapathak": text, "tesseract": text},
     }
+
+
+def _validation_message(schedule: dict[str, Any]) -> str:
+    steps = schedule["validation_steps"]
+    if len(steps) >= 2:
+        return "validation at 30% and 70% of training, then once after training"
+    if len(steps) == 1:
+        return "validation once during training, then once after training"
+    return "validation once after training"
 
 
 def _training_schedule(

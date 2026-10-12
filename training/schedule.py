@@ -1,8 +1,9 @@
 """Validation cadence during training.
 
-The interval follows the optimizer-step budget. One thousand steps with the
-default of ten checks validates at 100, 200, ..., 1000. The frozen benchmark
-is not an input to this schedule.
+Two checks run while training is in progress, at 30% and 70% of the optimizer
+steps. The last check is the evaluation stage after training finishes, so it
+is not one of these steps. The frozen benchmark is not an input to this
+schedule.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ import math
 from typing import Any
 
 DEFAULT_VAL_CHECKS = 10
+DURING_TRAINING_FRACTIONS = (0.30, 0.70)
 
 
 def validation_interval(steps: int, checks: int = DEFAULT_VAL_CHECKS) -> int:
@@ -39,6 +41,27 @@ def validation_steps(
     return points
 
 
+def during_training_steps(
+    total: int,
+    fractions: tuple[float, ...] = DURING_TRAINING_FRACTIONS,
+) -> list[int]:
+    """Optimizer steps for the checks that run before training finishes.
+
+    Each fraction is rounded to a step. The final step is left out: that
+    score is the evaluation stage after training. Fractions that land on the
+    same step, or only on the last step, are kept once or dropped.
+    """
+    if total < 1:
+        raise ValueError("optimizer steps must be positive")
+    points: list[int] = []
+    for fraction in fractions:
+        step = int(round(float(fraction) * total))
+        step = min(max(step, 1), total - 1)
+        if 1 <= step < total and step not in points:
+            points.append(step)
+    return points
+
+
 def resolve_training_schedule(
     *,
     train_count: int,
@@ -47,21 +70,28 @@ def resolve_training_schedule(
     steps: int | None,
     val_checks: int = DEFAULT_VAL_CHECKS,
 ) -> dict[str, Any]:
-    """Turn a step budget, or epochs times batches, into a validation grid.
+    """Turn a step budget, or epochs times batches, into the 30% and 70% checks.
 
     ``steps`` wins when it is set. Otherwise the budget is one optimizer step
-    per training batch, repeated for ``epochs``. Frozen-100 is not consulted.
+    per training batch, repeated for ``epochs``. ``val_checks`` is kept so
+    older callers still pass, and does not change the 30% and 70% points.
+    Frozen-100 is not consulted.
     """
+    del val_checks
     if steps is not None:
         total = int(steps)
     else:
         batches = math.ceil(train_count / max(int(batch_size), 1)) if train_count else 1
         total = max(1, batches * max(int(epochs), 1))
-    interval = validation_interval(total, val_checks)
+    during = during_training_steps(total)
     return {
         "optimizer_steps": total,
-        "val_checks": min(int(val_checks), total),
-        "val_check_interval": interval,
-        "validation_steps": validation_steps(total, val_checks),
+        "val_checks": len(during) + 1,
+        "val_check_interval": (
+            during[1] - during[0] if len(during) >= 2 else (during[0] if during else 0)
+        ),
+        "validation_steps": during,
+        "validation_after_training": True,
+        "during_fractions": list(DURING_TRAINING_FRACTIONS),
         "frozen_used_for_selection": False,
     }

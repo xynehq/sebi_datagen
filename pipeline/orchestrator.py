@@ -30,10 +30,21 @@ from pipeline.state import (
 from pipeline.tracking import Tracker
 from pipeline.validation import outputs_ready
 
+_AFTER_REVIEW = frozenset(
+    {"export", "train", "eval_checkpoints", "select", "frozen", "report"}
+)
 
-def select_names(group: str | None, start: str | None) -> list[str]:
+
+def select_names(
+    group: str | None,
+    start: str | None,
+    only: list[str] | None = None,
+) -> list[str]:
     names = list(ORDER)
-    if group == "dataset":
+    if only:
+        allowed = {resolve_stage_name(name) for name in only}
+        names = ["preflight", *[name for name in ORDER if name in allowed]]
+    elif group == "dataset":
         names = ["preflight", *DATASET_GROUP]
     elif group == "train":
         names = ["preflight", *TRAIN_GROUP]
@@ -61,6 +72,55 @@ def select_names(group: str | None, start: str | None) -> list[str]:
     return seen
 
 
+def _hold_for_review(root: Path, names: list[str]) -> tuple[list[str], bool]:
+    """Stop before export when no human gold exists. The process does not wait."""
+    if not any(name in _AFTER_REVIEW for name in names):
+        return names, False
+    if _has_gold(root):
+        return names, False
+    kept = [name for name in names if name not in _AFTER_REVIEW]
+    return kept, True
+
+
+def _has_gold(root: Path) -> bool:
+    from pipeline.dataset_flow import read_jsonl
+    from pipeline.gold import load_invalidated_ids, select_gold_rows
+
+    invalidated = load_invalidated_ids(root)
+    gold, _rejected = select_gold_rows(
+        read_jsonl(root / "manifests" / "verified.jsonl"),
+        invalidated,
+    )
+    return bool(gold)
+
+
+def _continue_after_review(
+    root: Path,
+    *,
+    group: str | None,
+    overrides: dict[str, Any] | None,
+) -> int:
+    """Open the review page and, after confirmation, export, train, and evaluate."""
+    from pipeline.review_pack import confirm_review
+
+    reviewer = "operator"
+    if isinstance(overrides, dict) and isinstance(overrides.get("reviewer_id"), str):
+        reviewer = str(overrides["reviewer_id"])
+    if not confirm_review(root, reviewer_id=reviewer):
+        print("Review was not confirmed. Export, training, and evaluation did not start.")
+        return 0
+    print("Review confirmed. Exporting the dataset, then training and evaluating.")
+    confirmed = dict(overrides or {})
+    confirmed.pop("only_stages", None)
+    confirmed["review_confirmed"] = True
+    del group
+    return execute(
+        root,
+        start="export",
+        overrides=confirmed,
+    )
+
+
 def execute(
     root: Path,
     *,
@@ -84,7 +144,12 @@ def execute(
         if code == 0:
             print("check: passed")
         return code
-    names = select_names(group, start)
+    only = config.get("only_stages")
+    names = select_names(group, start, only if isinstance(only, list) else None)
+    if mode == "fixture" or config.get("review_confirmed"):
+        held = False
+    else:
+        names, held = _hold_for_review(root, names)
     runs_root = _output_runs(root, config)
     state_path = runs_root / "pipeline_state.json"
     state = load_state(state_path)
@@ -107,12 +172,16 @@ def execute(
         for index, (name, action) in enumerate(plan, start=1):
             print(f"[{index}/{len(plan)}] {STAGES[name].title}")
             print(f"  {action}")
+        if held:
+            print("export, training, and evaluation wait until review is accepted")
         return 0
     pending = [name for name, action in plan if name != "preflight" and action != "skip"]
     if not pending:
         print("Pipeline already complete. Completed stages were not rerun.")
         if latest is not None:
             print(f"latest: {latest}")
+        if held:
+            return _continue_after_review(root, group=group, overrides=overrides)
         return 0
     if run_dir is None or (state.get("sealed") and any(action == "run" for _name, action in plan)):
         run_dir = _create_run(runs_root)
@@ -187,6 +256,8 @@ def execute(
         report = run_dir / "reports" / "final_report.html"
         if report.is_file():
             print(f"FINAL REPORT:\n{report}")
+        if held:
+            return _continue_after_review(root, group=group, overrides=overrides)
         return 0
     except StageFailed as exc:
         record = state["stages"].setdefault(exc.stage, blank_stage(exc.stage))
@@ -230,6 +301,8 @@ def _output_runs(root: Path, config: dict[str, Any]) -> Path:
 
 def _apply_cli_models(config: dict[str, Any], root: Path) -> None:
     training = config.setdefault("training", {})
+    if config.get("train_steps") is not None:
+        training["steps"] = int(config["train_steps"])
     if config.get("base_checkpoint_hf") and not config.get("base_checkpoint"):
         training["base_checkpoint"] = str(config["base_checkpoint_hf"])
     if config.get("base_checkpoint"):

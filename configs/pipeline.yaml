@@ -63,7 +63,7 @@ calibration:
 training:
   backend: parseq
   primary_metric: cer
-  epochs: 10
+  epochs: 1
   batch_size: 8
   learning_rate: 0.0001
   device: auto
@@ -71,8 +71,8 @@ training:
   train_manifest: data/datasets/train.jsonl
   val_manifest: data/datasets/val.jsonl
   # Optimizer-step budget. Leave unset to use epochs × batches.
-  # Validation is spread across that budget. 1000 steps and 10 checks
-  # validate at steps 100, 200, ..., 1000. Frozen-100 is not used here.
+  # While training runs, validation is at 30% and 70% of those steps.
+  # The last validation is the evaluation stage after training finishes.
   steps:
   val_checks: 10
 

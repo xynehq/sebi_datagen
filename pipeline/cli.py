@@ -31,6 +31,56 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Start at this stage and continue to the end. Example: ocr, training.",
     )
+    parser.add_argument(
+        "--stages",
+        default=None,
+        help=(
+            "Comma-separated stage names to run, for example ingest,render,ocr. "
+            "Export and later stages wait until review is accepted."
+        ),
+    )
+    parser.add_argument("--list-stages", action="store_true", help="Print stage names and stop.")
+    parser.add_argument(
+        "--serve-review",
+        action="store_true",
+        help="Serve the review page so Accept, Reject, Accept all, and Reject all save.",
+    )
+    parser.add_argument(
+        "--review-port",
+        type=int,
+        default=8765,
+        help="Port for --serve-review. Default is 8765.",
+    )
+    parser.add_argument(
+        "--accept-proposed",
+        action="store_true",
+        help="Record reports/review/decisions.json, then continue from export.",
+    )
+    parser.add_argument(
+        "--accept-file",
+        type=Path,
+        default=None,
+        help="Decisions JSON to record. Defaults to reports/review/decisions.json.",
+    )
+    parser.add_argument(
+        "--reviewer",
+        default="operator",
+        help=(
+            "Reviewer id stored with accepted lines. "
+            "agent, auto, assistant, and cursor are refused."
+        ),
+    )
+    parser.add_argument(
+        "--no-continue",
+        action="store_true",
+        help="With --accept-proposed, record decisions and do not start the next stages.",
+    )
+    parser.add_argument(
+        "--train-steps",
+        type=int,
+        default=None,
+        help="Optimizer-step budget for this training run.",
+    )
     parser.add_argument("--dataset-size", type=int, default=None)
     parser.add_argument("--train-ratio", type=float, default=None)
     parser.add_argument("--val-ratio", type=float, default=None)
@@ -221,12 +271,65 @@ def main(argv: list[str] | None = None) -> int:
         overrides["base_checkpoint_hf"] = args.base_checkpoint_hf
     if args.checkpoint:
         overrides["checkpoint"] = args.checkpoint
+    if args.train_steps is not None:
+        if args.train_steps < 1:
+            print("train-steps must be at least 1", file=sys.stderr)
+            return 2
+        overrides["train_steps"] = args.train_steps
+    if args.stages:
+        try:
+            from pipeline.graph import resolve_stage_name
+
+            overrides["only_stages"] = [
+                resolve_stage_name(part)
+                for part in args.stages.replace(" ", ",").split(",")
+                if part.strip()
+            ]
+        except KeyError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
     if args.indicocr:
         overrides["indicocr"] = args.indicocr
     if args.chitrapathak:
         overrides["chitrapathak"] = args.chitrapathak
     repo = Path(__file__).resolve().parents[1]
     root = args.root.resolve() if args.root else repo
+    if args.list_stages:
+        from pipeline.graph import ORDER, STAGES
+
+        for name in ORDER:
+            print(f"{name}\t{STAGES[name].title}")
+        return 0
+    if args.reviewer:
+        overrides["reviewer_id"] = args.reviewer
+    if args.serve_review:
+        from pipeline.review_pack import confirm_review
+
+        if not confirm_review(root, port=args.review_port, reviewer_id=args.reviewer):
+            print("Review was not confirmed. Training did not start.")
+            return 0
+        overrides["review_confirmed"] = True
+        if args.start is None and args.stage is None and not args.stages:
+            args.start = "export"
+    if args.accept_proposed or args.accept_file is not None:
+        from pipeline.accept_review import AcceptError, accept_reviews
+
+        try:
+            code = accept_reviews(
+                root,
+                decisions_path=args.accept_file,
+                reviewer_id=args.reviewer,
+            )
+        except AcceptError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        if code != 0:
+            return code
+        if args.no_continue:
+            print("Decisions recorded. Continue with ./run_pipeline.sh --from export")
+            return 0
+        if args.start is None and args.stage is None and not args.stages:
+            args.start = "export"
     if args.smoke:
         from pipeline.smoke import run_smoke
 
