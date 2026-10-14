@@ -80,6 +80,13 @@ def run_ocr(
     """Transcribe full-line crops, then write a candidate for each finished crop."""
     opener = open_backend if backend_opener is None else backend_opener
     crops = _full_crops(crop_rows)
+    documents = {str(row.get("document_id")) for row in crops}
+    note = (
+        f"OCR input: {len(crops)} line crops from {len(documents)} PDF document(s). "
+        "The source PDF is not sent to a model."
+    )
+    print(note, flush=True)
+    logger.info(note)
     report = OCRReport(crops=len(crops))
     configured = os.environ.get("OCR_BACKENDS", "").strip()
     if configured:

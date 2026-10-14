@@ -22,6 +22,11 @@ from indic_ocr_pipeline.utils.logging import configure_logging, get_logger
 
 logger = get_logger(__name__)
 
+PREPROCESS_NOTE = (
+    "Input is full PDF documents. Each PDF is rendered to page images, "
+    "then cut into line crops, before OCR runs."
+)
+
 RESUME_NOTE = "Existing manifest rows were kept. Ingestion can resume."
 
 
@@ -291,6 +296,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args(argv)
     configure_logging(verbose=args.verbose)
+    print(PREPROCESS_NOTE, flush=True)
+    logger.info(PREPROCESS_NOTE)
     started = datetime.now(UTC)
     try:
         settings = load_settings()

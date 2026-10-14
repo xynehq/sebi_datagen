@@ -529,6 +529,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args(argv)
     configure_logging(verbose=args.verbose)
+    print(
+        "Rendering PDF pages to PNG. OCR is not called on the source PDF.",
+        flush=True,
+    )
+    logger.info("rendering PDF pages to PNG before OCR")
     started = datetime.now(UTC)
     try:
         settings = load_settings()

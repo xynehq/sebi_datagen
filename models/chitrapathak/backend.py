@@ -43,7 +43,9 @@ class ChitrapathakBackend:
         self._model, self._processor = _load(
             model_path, self._device, self._dtype, adapter_path
         )
+        self._logged_image = False
         self.version = "chitrapathak-2" if adapter_path is None else "chitrapathak-lora"
+        _log_inference_path(model_path)
 
     def predict(self, image_path: Path) -> OCRPrediction:
         import torch
@@ -52,6 +54,9 @@ class ChitrapathakBackend:
         _reject_oversized(image_path, self._max_image_size)
         with Image.open(image_path) as image:
             rgb = image.convert("RGB").copy()
+        if not self._logged_image:
+            self._logged_image = True
+            _log_crop(image_path, rgb.size)
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {
@@ -91,6 +96,33 @@ class ChitrapathakBackend:
         self._processor = None
         gc.collect()
         _release_device(self._device)
+
+
+def _log_inference_path(model_path: Path) -> None:
+    """Record that this repo does not call official ``eval_model``."""
+    from indic_ocr_pipeline.utils.logging import get_logger
+
+    message = (
+        "Chitrapathak inference is local transformers AutoProcessor.generate "
+        f"on one RGB line crop (max_new_tokens={_LINE_TOKENS}, weights={model_path}). "
+        "Official chitrapathak.inference.eval_model is not called; that entry point "
+        "uses image_processor.preprocess(do_resize=False, do_rescale=False, "
+        "do_center_crop=False, do_normalize=False) and max_new_tokens=3000."
+    )
+    print(message, flush=True)
+    get_logger(__name__).info(message)
+
+
+def _log_crop(image_path: Path, size: tuple[int, int]) -> None:
+    from indic_ocr_pipeline.utils.logging import get_logger
+
+    width, height = size
+    message = (
+        f"Chitrapathak first crop: {image_path.name} "
+        f"{width}x{height} RGB, already cropped from a rendered PDF page."
+    )
+    print(message, flush=True)
+    get_logger(__name__).info(message)
 
 
 def _load(

@@ -393,6 +393,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     configure_logging(verbose=args.verbose)
+    print(
+        "Cutting line crops from rendered pages. These crops are the OCR input.",
+        flush=True,
+    )
+    logger.info("line crops are the OCR input")
     started = datetime.now(UTC)
     try:
         settings = load_settings()
