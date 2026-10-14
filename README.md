@@ -90,13 +90,13 @@ Use more than one PDF. Splits are by document. With a single document, that docu
 ./setup.sh
 ```
 
-That one command installs the environment, clears generated test outputs, and runs every stage on about 10 lines. Training starts from the published Marathi base. The review page opens when the lines are ready, and the command continues after you confirm.
+That one command installs the environment when needed, clears generated outputs, and runs every stage on every PDF in `data/raw/documents`. Training starts from the published Marathi base. The review page opens when the lines are ready, and the command continues after you confirm.
+
+The default dataset size is all lines. Pass a number only when you want a smaller run:
 
 ```bash
 ./setup.sh --dataset-size 10
 ```
-
-`--dataset-size` is the number of line crops to build. `./setup.sh` uses 10 when you leave it out. A larger number reads more of `data/raw/documents`. Omit `--dataset-size` on `./run_pipeline.sh` only when you want every PDF.
 
 `./run_pipeline.sh` runs the same stages without clearing previous outputs. Completed stages are skipped when their inputs have not changed. A failed stage leaves the earlier files in place.
 

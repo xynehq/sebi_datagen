@@ -118,7 +118,6 @@ rm -rf \
 find manifests -maxdepth 1 -type f \( -name '*.jsonl' -o -name '*.lock' -o -name '*.tmp' \) -delete
 
 echo "Starting the pipeline from the published base model."
-echo "The review page opens in the browser and this command waits until you confirm."
 found_size=0
 for arg in "$@"; do
   if [[ "$arg" == "--dataset-size" || "$arg" == "--datapoints" ]]; then
@@ -126,7 +125,7 @@ for arg in "$@"; do
   fi
 done
 if [[ "$found_size" -eq 0 ]]; then
-  echo "Dataset size: 10 lines. Pass --dataset-size N to use another number."
-  exec "$ROOT/run_pipeline.sh" --language marathi --dataset-size 10 "$@"
+  echo "Dataset size: every PDF."
 fi
+echo "The review page opens in the browser and this command waits until you confirm."
 exec "$ROOT/run_pipeline.sh" --language marathi "$@"
