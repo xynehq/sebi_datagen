@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +62,12 @@ def _config_hash(root: Path, config: dict[str, Any], stage: Stage) -> str:
     if stage.name in {"ingest", "render", "detect", "crop", "ocr", "compare"}:
         digest.update(b"dataset_size")
         digest.update(str(config.get("dataset_size")).encode())
+    if stage.name == "ocr":
+        tokens = config.get("chitrapathak_max_new_tokens") or os.environ.get(
+            "CHITRAPATHAK_MAX_NEW_TOKENS"
+        )
+        digest.update(b"chitrapathak_max_new_tokens")
+        digest.update(str(tokens).encode())
     if stage.name in {"ocr", "train", "eval_checkpoints", "select", "frozen"}:
         local = root / "configs" / "local.yaml"
         digest.update(b"local")

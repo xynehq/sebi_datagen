@@ -38,6 +38,7 @@ class ChitrapathakBackend:
         if not (model_path / "config.json").is_file():
             raise OCRError(f"chitrapathak weights were not found at {model_path}")
         self._max_image_size = settings.max_image_size
+        self._max_new_tokens = settings.max_new_tokens or _LINE_TOKENS
         self._device = _require_device(settings.device)
         self._dtype = settings.dtype
         self._model, self._processor = _load(
@@ -45,7 +46,7 @@ class ChitrapathakBackend:
         )
         self._logged_image = False
         self.version = "chitrapathak-2" if adapter_path is None else "chitrapathak-lora"
-        _log_inference_path(model_path)
+        _log_inference_path(model_path, self._max_new_tokens)
 
     def predict(self, image_path: Path) -> OCRPrediction:
         import torch
@@ -76,7 +77,7 @@ class ChitrapathakBackend:
         with torch.inference_mode():
             output = self._model.generate(
                 **inputs,
-                max_new_tokens=_LINE_TOKENS,
+                max_new_tokens=self._max_new_tokens,
                 do_sample=False,
             )
         raw_text = self._processor.batch_decode(
@@ -98,13 +99,13 @@ class ChitrapathakBackend:
         _release_device(self._device)
 
 
-def _log_inference_path(model_path: Path) -> None:
+def _log_inference_path(model_path: Path, max_new_tokens: int) -> None:
     """Record that this repo does not call official ``eval_model``."""
     from indic_ocr_pipeline.utils.logging import get_logger
 
     message = (
         "Chitrapathak inference is local transformers AutoProcessor.generate "
-        f"on one RGB line crop (max_new_tokens={_LINE_TOKENS}, weights={model_path}). "
+        f"on one RGB line crop (max_new_tokens={max_new_tokens}, weights={model_path}). "
         "Official chitrapathak.inference.eval_model is not called; that entry point "
         "uses image_processor.preprocess(do_resize=False, do_rescale=False, "
         "do_center_crop=False, do_normalize=False) and max_new_tokens=3000."

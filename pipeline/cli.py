@@ -96,6 +96,15 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Same as --dataset-size.",
     )
+    parser.add_argument(
+        "--chitrapathak-max-tokens",
+        type=int,
+        default=None,
+        help=(
+            "Longest text Chitrapathak may return for one image. "
+            "Default 512 (configs/ocr.yaml). The official full-page reader uses 3000."
+        ),
+    )
     parser.add_argument("--train-ratio", type=float, default=None)
     parser.add_argument("--val-ratio", type=float, default=None)
     parser.add_argument("--resume", action="store_true", help="Skip stages already complete.")
@@ -238,6 +247,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.dataset_size is not None and args.dataset_size < 1:
         print("dataset-size must be at least 1", file=sys.stderr)
         return 2
+    if args.chitrapathak_max_tokens is not None and args.chitrapathak_max_tokens < 1:
+        print("chitrapathak-max-tokens must be at least 1", file=sys.stderr)
+        return 2
     ratios = (args.train_ratio, args.val_ratio)
     if None not in ratios and args.train_ratio + args.val_ratio >= 1:
         print("train-ratio and val-ratio must leave room for a held-out split", file=sys.stderr)
@@ -263,6 +275,8 @@ def main(argv: list[str] | None = None) -> int:
     overrides: dict[str, object] = {"offline": bool(args.offline), "publish": bool(args.publish)}
     if args.dataset_size is not None:
         overrides["dataset_size"] = args.dataset_size
+    if args.chitrapathak_max_tokens is not None:
+        overrides["chitrapathak_max_new_tokens"] = args.chitrapathak_max_tokens
     if args.train_ratio is not None:
         overrides["train_ratio"] = args.train_ratio
     if args.val_ratio is not None:

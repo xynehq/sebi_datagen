@@ -78,6 +78,9 @@ def _publish_dataset_size(ctx: Ctx) -> None:
     """Expose --dataset-size to the ingestion, render, and line-detection stages."""
     import os
 
+    tokens = ctx.config.get("chitrapathak_max_new_tokens")
+    if tokens is not None:
+        os.environ["CHITRAPATHAK_MAX_NEW_TOKENS"] = str(int(tokens))
     size = ctx.config.get("dataset_size")
     if size is None:
         os.environ.pop("DATASET_SIZE", None)

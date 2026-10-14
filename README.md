@@ -98,6 +98,12 @@ The default dataset size is all lines. Pass a number only when you want a smalle
 ./setup.sh --dataset-size 10
 ```
 
+Chitrapathak may return up to 512 tokens for each line crop by default. Raise the limit with `--chitrapathak-max-tokens` (the official full-page reader uses 3000), or set `CHITRAPATHAK_MAX_NEW_TOKENS` in `.env`:
+
+```bash
+./setup.sh --chitrapathak-max-tokens 3000
+```
+
 `./run_pipeline.sh` runs the same stages without clearing previous outputs. Completed stages are skipped when their inputs have not changed. A failed stage leaves the earlier files in place.
 
 ### 1. Build lines up to review

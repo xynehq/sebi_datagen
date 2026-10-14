@@ -41,3 +41,7 @@ chitrapathak:
   dtype: bfloat16
   max_image_size: 4096
   concurrency: 1
+  # Longest text Chitrapathak may return for one image, in tokens.
+  # 512 fits one line crop. The official full-page reader uses 3000.
+  # Override with CHITRAPATHAK_MAX_NEW_TOKENS or --chitrapathak-max-tokens.
+  max_new_tokens: 512

@@ -141,6 +141,7 @@ class BackendSettings:
     dtype: str
     max_image_size: int
     concurrency: int
+    max_new_tokens: int | None = None
 
 
 @dataclass(frozen=True)
@@ -282,6 +283,7 @@ def load_settings(
 def _apply_environment(ocr: dict[str, Any], environ: Mapping[str, str]) -> None:
     indicocr_path = environ.get("INDICOCR_MODEL_PATH", "").strip()
     chitrapathak_path = environ.get("CHITRAPATHAK_MODEL_PATH", "").strip()
+    chitrapathak_tokens = environ.get("CHITRAPATHAK_MAX_NEW_TOKENS", "").strip()
     tesseract_cmd = environ.get("TESSERACT_CMD", "").strip()
     device = (
         environ.get("INDIC_OCR_DEVICE", "").strip()
@@ -291,6 +293,12 @@ def _apply_environment(ocr: dict[str, Any], environ: Mapping[str, str]) -> None:
         _mapping(ocr.get("indicocr"), "ocr.indicocr")["model_path"] = indicocr_path
     if chitrapathak_path:
         _mapping(ocr.get("chitrapathak"), "ocr.chitrapathak")["model_path"] = chitrapathak_path
+    if chitrapathak_tokens:
+        if not chitrapathak_tokens.isdigit():
+            raise ConfigError("CHITRAPATHAK_MAX_NEW_TOKENS must be a positive whole number")
+        _mapping(ocr.get("chitrapathak"), "ocr.chitrapathak")["max_new_tokens"] = int(
+            chitrapathak_tokens
+        )
     if tesseract_cmd:
         _mapping(ocr.get("tesseract"), "ocr.tesseract")["cmd"] = tesseract_cmd
     if device:
@@ -756,9 +764,15 @@ def _backend_settings(value: object, name: str, *, command: bool) -> BackendSett
     if command:
         allowed |= {"cmd", "lang", "psm"}
     else:
-        allowed |= {"model_path"}
+        allowed |= {"model_path", "max_new_tokens"}
     _reject_unknown(raw, allowed, f"ocr.{name}")
     model_path = None if command else _optional_str(raw.get("model_path"), f"ocr.{name}.model_path")
+    tokens = raw.get("max_new_tokens")
+    max_new_tokens = (
+        None
+        if tokens is None
+        else _int(tokens, f"ocr.{name}.max_new_tokens", minimum=1)
+    )
     return BackendSettings(
         name=name,
         cmd=_str(raw.get("cmd"), f"ocr.{name}.cmd") if command else None,
@@ -770,6 +784,7 @@ def _backend_settings(value: object, name: str, *, command: bool) -> BackendSett
         dtype=_str(raw.get("dtype"), f"ocr.{name}.dtype"),
         max_image_size=_int(raw.get("max_image_size"), f"ocr.{name}.max_image_size", minimum=1),
         concurrency=_int(raw.get("concurrency"), f"ocr.{name}.concurrency", minimum=1),
+        max_new_tokens=max_new_tokens,
     )
 
 

@@ -67,6 +67,14 @@ def test_environment_overrides_model_paths(repo_root: Path) -> None:
     assert settings.ocr.chitrapathak.device == "cuda:0"
 
 
+def test_chitrapathak_token_limit_defaults_to_512_and_env_overrides(repo_root: Path) -> None:
+    assert load_settings(repo_root, environ={}).ocr.chitrapathak.max_new_tokens == 512
+    settings = load_settings(repo_root, environ={"CHITRAPATHAK_MAX_NEW_TOKENS": "3000"})
+    assert settings.ocr.chitrapathak.max_new_tokens == 3000
+    with pytest.raises(ConfigError):
+        load_settings(repo_root, environ={"CHITRAPATHAK_MAX_NEW_TOKENS": "many"})
+
+
 def test_indic_device_overrides_the_older_env_name(repo_root: Path) -> None:
     settings = load_settings(
         repo_root,
