@@ -51,7 +51,8 @@ def _speed_label(words: int, elapsed: float) -> str:
 
 
 def _links_html(dataset: str, finetune: str, speed: str = "", device: str = "") -> str:
-    speed_html = f' · <span class="sebi-speed">{speed}</span>' if speed else ""
+    shown = speed if speed else "0 words/s"
+    speed_html = f' · <span class="sebi-speed">⚡ {shown}</span>'
     return (
         '<div class="sebi-sub">'
         '<p class="sebi-links">'
@@ -290,23 +291,37 @@ def build_demo(engine: Engine) -> gr.Blocks:
     .sebi-head {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      column-gap: 18px;
+      column-gap: 16px;
       row-gap: 8px;
       align-items: center;
     }
     .sebi-head h1 { grid-column: 1; grid-row: 1; margin: 0; }
-    .sebi-head .juspay-brand { grid-column: 2; grid-row: 1; justify-self: end; }
+    .sebi-head .juspay-brand { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
     .sebi-head .sebi-lead {
       grid-column: 1;
       grid-row: 2;
       margin: 0 !important;
     }
-    .sebi-head .theme-switch { grid-column: 2; grid-row: 2; justify-self: end; }
-    .sebi-sub p {
-      margin: 0 0 4px 0 !important;
+    .sebi-head .theme-switch {
+      grid-column: 2;
+      grid-row: 2;
+      justify-self: end;
+      align-self: center;
+    }
+    #sebi-hero .sebi-head {
+      padding-bottom: 0 !important;
+    }
+    #sebi-hero .sebi-sub {
+      padding-top: 0 !important;
+    }
+    #sebi-hero .block + .block {
+      margin-top: 8px !important;
+    }
+    #sebi-hero .sebi-sub p {
+      margin: 0 0 8px 0 !important;
       line-height: 1.45;
     }
-    .sebi-sub p:last-child { margin-bottom: 0 !important; }
+    #sebi-hero .sebi-sub p:last-child { margin-bottom: 0 !important; }
     .juspay-brand svg { width: 32px; height: 32px; display: block; }
     .theme-switch {
       position: relative !important;
@@ -585,6 +600,25 @@ def build_demo(engine: Engine) -> gr.Blocks:
       box-shadow: none !important;
       min-height: 240px !important;
     }
+    .sebi-copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      z-index: 4;
+      border: 1px solid #334155;
+      background: #152033;
+      color: #e8eef7;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 12px;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+    html.sebi-light .sebi-copy-btn {
+      background: #ffffff;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
     .sebi-panel.sebi-light,
     .sebi-panel.sebi-light textarea,
     .sebi-panel.sebi-light input:not([type="checkbox"]),
@@ -732,6 +766,30 @@ def build_demo(engine: Engine) -> gr.Blocks:
         });
         const toggle = document.getElementById("theme-toggle");
         if (toggle) toggle.setAttribute("aria-checked", dark ? "true" : "false");
+        const area = document.querySelector(".sebi-output textarea");
+        const host = area && area.parentElement;
+        if (host && !host.querySelector(".sebi-copy-btn")) {
+          host.style.position = "relative";
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "sebi-copy-btn";
+          btn.textContent = "Copy";
+          btn.addEventListener("click", async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const value = area.value || "";
+            try {
+              await navigator.clipboard.writeText(value);
+            } catch (err) {
+              area.focus();
+              area.select();
+              document.execCommand("copy");
+            }
+            btn.textContent = "Copied";
+            setTimeout(() => { btn.textContent = "Copy"; }, 1200);
+          });
+          host.appendChild(btn);
+        }
       };
       const apply = (next) => {
         dark = next;
