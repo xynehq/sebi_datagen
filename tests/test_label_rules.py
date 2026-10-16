@@ -224,8 +224,8 @@ def test_review_sample_covers_documents_and_keeps_budget_for_disagreement() -> N
 
 
 def test_export_keeps_existing_human_reviews_and_skips_frozen_ids(tmp_path: Path) -> None:
-    manifests = tmp_path / "manifests"
-    manifests.mkdir()
+    manifests = tmp_path / "data" / "output"
+    manifests.mkdir(parents=True)
     human = {
         "crop_id": "HUMAN1",
         "document_id": "D",

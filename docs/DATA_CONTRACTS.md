@@ -6,39 +6,39 @@ candidate rows and 3N prediction rows.
 
 ## Ingest
 
-* Input: PDFs in `data/raw/documents/`
-* Output: `manifests/documents.jsonl`
+* Input: PDFs in `data/documents/`
+* Output: `data/output/documents.jsonl`
 * Identity: `document_id`
 
 ## Render
 
-* Input: `manifests/documents.jsonl`
-* Output: `manifests/pages.jsonl`, `data/rendered/pages/`
+* Input: `data/output/documents.jsonl`
+* Output: `data/output/pages.jsonl`, `data/pages/`
 * Identity: `page_id`
 
 ## Region detection
 
-* Input: `manifests/pages.jsonl`
-* Output: `manifests/regions.jsonl`
+* Input: `data/output/pages.jsonl`
+* Output: `data/output/regions.jsonl`
 * Identity: `region_id`
 
 ## Line detection
 
-* Input: `manifests/regions.jsonl`
-* Output: `manifests/lines.jsonl`, `manifests/crops.jsonl`, `data/crops/`
+* Input: `data/output/regions.jsonl`
+* Output: `data/output/lines.jsonl`, `data/output/crops.jsonl`, `data/crops/`
 * Identity: `line_id`, `crop_id`
 
 ## OCR
 
-* Input: `manifests/crops.jsonl`
-* Output: `manifests/predictions.jsonl`
+* Input: `data/output/crops.jsonl`
+* Output: `data/output/predictions.jsonl`
 * One row per crop per backend: `indicocr`, `chitrapathak`, `tesseract`
 * Count: predictions = 3 × crops
 
 ## Comparison
 
 * Input: predictions and crops
-* Output: `manifests/consensus.jsonl`
+* Output: `data/output/consensus.jsonl`
 * Count: candidates = crops
 
 Each candidate stores all three strings and one class:
@@ -56,7 +56,7 @@ label. Dissenting text stays on the row.
 
 ## Calibration
 
-* Input: `manifests/consensus.jsonl`
+* Input: `data/output/consensus.jsonl`
 * Output: `data/review/calibration/sample.jsonl`
 * Seed `3407`
 * Rates: 5% of `ALL_3_AGREE`, 20% of `TWO_AGREE`, 100% of the three review classes
@@ -75,7 +75,7 @@ Refused: `HUMAN_REJECTED`, `HUMAN_BAD_BOUNDARY`, missing reviewer, missing
 `review_origin: human`, and any crop id in
 `data/review/archive/invalidated_phase10/invalidated_ids.json`.
 
-The archive is a copy. `manifests/verified.jsonl` is not deleted. Rows in the
+The archive is a copy. `data/output/verified.jsonl` is not deleted. Rows in the
 archive are marked `INVALIDATED_REVIEW`.
 
 ## Dataset export
@@ -85,6 +85,10 @@ archive are marked `INVALIDATED_REVIEW`.
 * Split is by `document_id`
 * Every row has `source: human_review` and `verification_status`
 * The frozen exam is rejected if a row references its ids or its directory
+
+## Page-reader captures
+
+Indic Vachak writes finished page readings to `data/ocr_captures/`. `pages/` is the image that was read, `text/` is the raw text, and `captures.jsonl` is the ledger. Each row has `source: model_capture` and `gold: false`. Training does not read this folder. A person still has to accept or correct the text before it can enter `data/datasets/`.
 
 ## Training
 

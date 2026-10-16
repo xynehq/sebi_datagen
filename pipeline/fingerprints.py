@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from pipeline.graph import STAGES, Stage
+from pipeline.records import records_dir
 
 
 def sha256_file(path: Path) -> str:
@@ -112,19 +113,19 @@ def _run_scoped(name: str) -> bool:
 
 def _input_hash(root: Path, config: dict[str, Any], name: str) -> str:
     paths = config.get("paths") or {}
-    source = (config.get("source") or {}).get("documents_dir", "data/raw/documents")
+    source = (config.get("source") or {}).get("documents_dir", "data/documents")
     mapping = {
         "preflight": [root / "configs" / "pipeline.yaml"],
         "ingest": sorted((root / source).glob("*.pdf")) if (root / source).is_dir() else [],
-        "render": [root / "manifests" / "documents.jsonl"],
-        "detect": [root / "manifests" / "pages.jsonl"],
-        "crop": [root / "manifests" / "regions.jsonl"],
-        "ocr": [root / "manifests" / "crops.jsonl"],
-        "compare": [root / "manifests" / "predictions.jsonl", root / "manifests" / "crops.jsonl"],
-        "calibrate": [root / "manifests" / "consensus.jsonl"],
+        "render": [records_dir(root) / "documents.jsonl"],
+        "detect": [records_dir(root) / "pages.jsonl"],
+        "crop": [records_dir(root) / "regions.jsonl"],
+        "ocr": [records_dir(root) / "crops.jsonl"],
+        "compare": [records_dir(root) / "predictions.jsonl", records_dir(root) / "crops.jsonl"],
+        "calibrate": [records_dir(root) / "consensus.jsonl"],
         "export": [
-            root / "manifests" / "consensus.jsonl",
-            root / "manifests" / "verified.jsonl",
+            records_dir(root) / "consensus.jsonl",
+            records_dir(root) / "verified.jsonl",
             root / "data" / "review" / "archive" / "invalidated_phase10" / "invalidated_ids.json",
         ],
         "train": [

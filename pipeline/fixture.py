@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from pipeline.line_image import write_text_image
+from pipeline.records import records_dir
 
 
 def prepare_fixture(root: Path) -> None:
@@ -23,7 +24,7 @@ runtime:
   require_tesseract: false
   require_ocr_models: false
 source:
-  documents_dir: data/raw/documents
+  documents_dir: data/documents
 paths:
   data_dir: data
   frozen_benchmark: frozen/marathi100
@@ -76,6 +77,6 @@ evaluation:
         json.dumps(row, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
-    (root / "data" / "raw" / "documents").mkdir(parents=True, exist_ok=True)
-    (root / "manifests").mkdir(parents=True, exist_ok=True)
+    (root / "data" / "documents").mkdir(parents=True, exist_ok=True)
+    records_dir(root).mkdir(parents=True, exist_ok=True)
     (root / "runs").mkdir(parents=True, exist_ok=True)

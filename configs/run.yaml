@@ -3,7 +3,7 @@
 
 dataset_size: null
 source_dir: input/pdfs
-also_scan: data/raw/documents
+also_scan: data/documents
 train_ratio: 0.8
 val_ratio: 0.1
 seed: 3407

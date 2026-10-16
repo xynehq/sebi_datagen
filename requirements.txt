@@ -9,3 +9,10 @@ huggingface_hub>=0.26
 timm
 pytest>=8.0
 ruff>=0.6
+fastapi>=0.115
+uvicorn>=0.32
+python-multipart>=0.0.12
+gradio>=5.0
+transformers>=4.56
+peft>=0.13
+accelerate>=1.0

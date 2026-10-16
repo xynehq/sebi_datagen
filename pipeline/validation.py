@@ -7,6 +7,7 @@ from typing import Any
 
 from pipeline.dataset_flow import CountError, assert_ocr_counts, read_jsonl
 from pipeline.graph import STAGES
+from pipeline.records import records_dir
 
 
 def output_base(root: Path, run_dir: Path | None, name: str, record: dict[str, Any] | None) -> Path:
@@ -45,23 +46,23 @@ def outputs_ready(
     if not all((base / relative).is_file() for relative in stage.outputs):
         return False
     if name == "ingest":
-        return len(read_jsonl(root / "manifests" / "documents.jsonl")) > 0
+        return len(read_jsonl(records_dir(root) / "documents.jsonl")) > 0
     if name == "render":
-        return len(read_jsonl(root / "manifests" / "pages.jsonl")) > 0
+        return len(read_jsonl(records_dir(root) / "pages.jsonl")) > 0
     if name == "detect":
-        return len(read_jsonl(root / "manifests" / "regions.jsonl")) > 0
+        return len(read_jsonl(records_dir(root) / "regions.jsonl")) > 0
     if name == "crop":
-        lines = len(read_jsonl(root / "manifests" / "lines.jsonl"))
-        crops = len(read_jsonl(root / "manifests" / "crops.jsonl"))
+        lines = len(read_jsonl(records_dir(root) / "lines.jsonl"))
+        crops = len(read_jsonl(records_dir(root) / "crops.jsonl"))
         return lines > 0 and lines == crops
     if name == "ocr":
-        crops = len(read_jsonl(root / "manifests" / "crops.jsonl"))
-        predictions = read_jsonl(root / "manifests" / "predictions.jsonl")
+        crops = len(read_jsonl(records_dir(root) / "crops.jsonl"))
+        predictions = read_jsonl(records_dir(root) / "predictions.jsonl")
         return crops > 0 and len(predictions) == crops * _backend_count(root, predictions)
     if name == "compare":
-        crops = len(read_jsonl(root / "manifests" / "crops.jsonl"))
-        predictions = read_jsonl(root / "manifests" / "predictions.jsonl")
-        candidates = len(read_jsonl(root / "manifests" / "consensus.jsonl"))
+        crops = len(read_jsonl(records_dir(root) / "crops.jsonl"))
+        predictions = read_jsonl(records_dir(root) / "predictions.jsonl")
+        candidates = len(read_jsonl(records_dir(root) / "consensus.jsonl"))
         try:
             assert_ocr_counts(
                 crops,

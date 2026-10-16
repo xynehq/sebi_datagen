@@ -9,8 +9,8 @@ index of the line inside that block. Boxes are ``[x0, y0, x1, y1]`` in
 rendered-page pixels, origin top-left, ``x1`` and ``y1`` exclusive.
 
 The line geometry is a ``RegionRecord`` with ``region_type`` ``line`` in
-``manifests/lines.jsonl``. The PNG path and crop hash are the matching
-``CropRecord`` in ``manifests/crops.jsonl``. Neither record stores text.
+``data/output/lines.jsonl``. The PNG path and crop hash are the matching
+``CropRecord`` in ``data/output/crops.jsonl``. Neither record stores text.
 """
 
 from __future__ import annotations

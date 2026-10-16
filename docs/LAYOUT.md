@@ -13,6 +13,7 @@
 | `configs/languages/` | Marathi, Gujarati, and Bengali profiles |
 | `configs/*.yaml` | Shared defaults |
 | `scripts/` | Thin stage wrappers. They import the package |
+| `ocr_service/` | Indic Vachak page reader. Separate from the line pipeline |
 
 ## Configuration precedence
 
@@ -24,11 +25,13 @@
 
 ## Data that was not moved
 
-The Marathi corpus already has documents, crops, predictions, review files, and manifests. Those paths stay where the running pipeline reads them:
+The Marathi corpus already has documents, crops, predictions, and review files. Those paths stay where the running pipeline reads them:
 
-- `data/raw/documents/`
+- `data/documents/`
+- `data/pages/`
 - `data/crops/`
-- `manifests/`
+- `data/output/`
+- `data/ocr_captures/` for page-reader images and raw text. Not gold
 - `data/review/`
 - `runs/` for Marathi resume state
 

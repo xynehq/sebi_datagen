@@ -73,7 +73,7 @@ chmod +x setup.sh run_pipeline.sh
 2. Create `.venv` when it is missing, or reuse it.
 3. Install the pinned packages in `requirements.txt`.
 4. Print the Python version, the PyTorch version, and the CUDA device when CUDA is available. CPU and Apple MPS still run the pipeline when CUDA is absent.
-5. Create `data/pdfs`, `data/raw_ocr`, `data/calibration`, `data/golden`, `data/auto_accepted`, `data/datasets`, `manifests`, `runs`, `models/cache`, and `configs/languages`.
+5. Create `data/documents`, `data/output`, `runs`, `models/cache`, and `configs/languages`.
 6. Fail with the variable name when `INDICOCR_MODEL_PATH`, `CHITRAPATHAK_MODEL_PATH`, or `CHECKPOINT` is set and that path does not exist. It does not fetch the file.
 
 `./run_pipeline.sh` loads `.env` from the repository root when that file exists, then starts `python -m pipeline.cli`. The first time, if no interpreter can import PyYAML, Pillow, NumPy, and pypdfium2, the launcher creates `.venv` and installs `requirements.txt`. It does not reinstall when those imports already succeed. `PIPELINE_PYTHON` selects the interpreter when you set it. Otherwise the launcher uses `.venv`, then `python3.13`, then `python3`.
@@ -90,7 +90,7 @@ Preflight checks the Python version, required packages, configs, source PDFs or 
 
 ## Put the inputs in place
 
-Source PDFs go in `data/raw/documents/`, or in the directory you pass with `--input-dir`. Ingestion reads the top level of that directory.
+Source PDFs go in `data/documents/`, or in the directory you pass with `--input-dir`. Ingestion reads the top level of that directory.
 
 The frozen exam is `data/eval_data/`:
 
@@ -182,7 +182,7 @@ A single model flag is rejected. Names are lowercase identifiers of up to 32 cha
 Default three adapters, using paths from the environment:
 
 ```bash
-./run_pipeline.sh --language marathi --input-dir data/raw/documents --generate
+./run_pipeline.sh --language marathi --input-dir data/documents --generate
 ```
 
 Two local models, then a third from Hugging Face if it is not already on disk:
@@ -190,7 +190,7 @@ Two local models, then a third from Hugging Face if it is not already on disk:
 ```bash
 ./run_pipeline.sh \
   --language marathi \
-  --input-dir /data/pdfs \
+  --input-dir data/documents \
   --model-1 indicocr --model-1-path "$INDICOCR_MODEL_PATH" \
   --model-2 chitrapathak --model-2-path "$CHITRAPATHAK_MODEL_PATH" \
   --model-3 tesseract --model-3-path "$TESSERACT_CMD" \
@@ -236,12 +236,12 @@ Audit 400 lines and allow auto-accept only for a class whose 95% lower bound is 
 
 ```text
 preflight
-  → ingest          manifests/documents.jsonl
-  → render          page images, manifests/pages.jsonl
-  → detect          manifests/regions.jsonl
-  → crop            manifests/lines.jsonl, manifests/crops.jsonl
-  → ocr             manifests/predictions.jsonl
-  → compare         manifests/consensus.jsonl
+  → ingest          data/output/documents.jsonl
+  → render          page images, data/output/pages.jsonl
+  → detect          data/output/regions.jsonl
+  → crop            data/output/lines.jsonl, data/output/crops.jsonl
+  → ocr             data/output/predictions.jsonl
+  → compare         data/output/consensus.jsonl
   → calibrate       data/review/calibration/sample.jsonl
                     data/calibration/sample.jsonl
   → export          data/datasets/train.jsonl
@@ -273,10 +273,10 @@ Paths come from `configs/pipeline.yaml`:
 
 | Data | Path |
 | --- | --- |
-| Source PDFs | `data/raw/documents` |
-| Page images | `data/rendered/pages` |
+| Source PDFs | `data/documents` |
+| Page images | `data/pages` |
 | Regions | `data/detected/regions` |
-| Full-line crops | `data/crops/full` |
+| Full-line crops | `data/crops` |
 | Partial crops | `data/crops/partial` |
 | Review crops | `data/crops/review` |
 | Raw predictions | `data/predictions` |
@@ -310,7 +310,7 @@ The comparison key is NFC, trimmed, with internal whitespace collapsed to a sing
 
 ### Consensus
 
-`manifests/consensus.jsonl` has one row per crop. For the default three models the class names stay compatible with the existing review and tests:
+`data/output/consensus.jsonl` has one row per crop. For the default three models the class names stay compatible with the existing review and tests:
 
 | Situation | `agreement_class` | `status` | `consensus_status` |
 | --- | --- | --- | --- |
@@ -359,7 +359,7 @@ The review server is localhost only. It does not run OCR, download assets, or ex
 python -m indic_ocr_pipeline.review.app
 ```
 
-It listens on `127.0.0.1:8765` unless `configs/review.yaml` or `--host` / `--port` say otherwise. `--host` may only be `127.0.0.1` or `localhost`. The process expects `manifests/review_batch.jsonl`. Build that queue from the calibration sample with the existing review scripts (`scripts/sample_review.py`, `scripts/build_review_manifest.py`) before opening the UI.
+It listens on `127.0.0.1:8765` unless `configs/review.yaml` or `--host` / `--port` say otherwise. `--host` may only be `127.0.0.1` or `localhost`. The process expects `data/output/review_batch.jsonl`. Build that queue from the calibration sample with the existing review scripts (`scripts/sample_review.py`, `scripts/build_review_manifest.py`) before opening the UI.
 
 The screen shows the line image, the page context, every model string, and the suggestion. The suggestion is labeled as not verified. Buttons:
 
@@ -370,7 +370,7 @@ The screen shows the line image, the page context, every model string, and the s
 | Reject | R | The line is not gold. |
 | Bad boundary | B | The crop itself is wrong. Not gold. |
 
-The typed text is the human transcription. The verified row stores it as the gold text. Export copies that text to `human_verified_text` on `data/golden/records.jsonl`. Storage form is NFC with the ends trimmed. The reviewer id comes from `configs/review.yaml` (`local_reviewer` by default). Decisions land in `manifests/verified.jsonl` with `review_origin=human`, a reviewer id, and a timestamp.
+The typed text is the human transcription. The verified row stores it as the gold text. Export copies that text to `human_verified_text` on `data/golden/records.jsonl`. Storage form is NFC with the ends trimmed. The reviewer id comes from `configs/review.yaml` (`local_reviewer` by default). Decisions land in `data/output/verified.jsonl` with `review_origin=human`, a reviewer id, and a timestamp.
 
 Reviewer ids `cursor`, `agent`, `assistant`, and `auto` are blocked. A row with one of those ids cannot become gold.
 
@@ -412,7 +412,7 @@ If you omit `--auto-accept-threshold`, every class stays a suggestion and the au
 
 Rejected and bad-boundary rows are listed in `data/review/gold_rejected.jsonl` with the reason. They do not enter training.
 
-Historical Phase 10 review rows were not produced by a person. The first export copies them to `data/review/archive/invalidated_phase10/`, writes `invalidated_ids.json`, and marks them `INVALIDATED_REVIEW`. The original `manifests/verified.jsonl` stays where it is. Those crop ids cannot become gold.
+Historical Phase 10 review rows were not produced by a person. The first export copies them to `data/review/archive/invalidated_phase10/`, writes `invalidated_ids.json`, and marks them `INVALIDATED_REVIEW`. The original `data/output/verified.jsonl` stays where it is. Those crop ids cannot become gold.
 
 Export then splits human gold by document, so crops from one PDF stay in one split. Defaults in `configs/dataset.yaml` are train 0.8, validation 0.1, test 0.1, seed 3407. Frozen-exam ids are removed before the split. Outputs:
 
@@ -497,9 +497,12 @@ Add a language by copying `configs/languages/marathi.yaml` to `configs/languages
 
 | Path | Role |
 | --- | --- |
-| `setup.sh` | Create `.venv`, install requirements, check Python and CUDA, create directories. No downloads. |
-| `run_pipeline.sh` | The only launcher. |
-| `requirements.txt` | Python packages. |
+| `setup.sh` | Create `.venv`, install `requirements.txt`, install this package, check Python, create directories, then run the pipeline. The page reader downloads its own weights on first use. |
+| `run_pipeline.sh` | Launcher for the line pipeline. |
+| `ocr_service/run.sh` | Launcher for the Indic Vachak page reader. |
+| `requirements.txt` | The only Python package list. Pipeline and page reader both use it. |
+| `.env.example` | The only environment example. Copy it to `.env`. |
+| `.gitignore` | The only ignore file. |
 | `pipeline/` | Orchestrator, stage graph, resume, model registry, consensus export, audit budget, quality report. |
 | `src/indic_ocr_pipeline/` | Ingest, render, detect, crops, OCR adapters’ call sites, review server, text policy. |
 | `models/IndicPhotoOCR/` | IndicOCR and PARSeq code. |
@@ -518,7 +521,7 @@ Add a language by copying `configs/languages/marathi.yaml` to `configs/languages
 | `data/calibration/` | Audit sample and the precision report. |
 | `data/datasets/` | Train, validation, and held-out JSONL. |
 | `data/eval_data/` | Frozen exam. Not committed; keep it on the machine that evaluates. |
-| `manifests/` | JSONL ledgers. Not committed. |
+| `data/output/` | JSONL ledgers. Not committed. |
 | `runs/` | One directory per run. Not committed. |
 | `docs/` | Architecture, data contracts, label policy, runbook. |
 
@@ -526,9 +529,10 @@ Add a language by copying `configs/languages/marathi.yaml` to `configs/languages
 
 `.gitignore` keeps private and generated files off the remote:
 
-- `.env`, `configs/local.yaml`, `.venv`
+- `.env`, `ocr_service/ngrok.yml`, `configs/local.yaml`, `.venv`
+- `model_cache/` and `models/cache/`
 - `data/`, `input/`, `reports/`, `runs/`, `frozen/`
-- `manifests/*.jsonl` and manifest locks
+- `data/output/*.jsonl` and manifest locks
 - `*.ckpt`, `*.pt`, `*.pth`, `*.safetensors`, `checkpoints/`, `models/**/weights/`, `wandb/`
 
 Engine source under `models/` is committed. Weights are not. Clone the repo, run `./setup.sh`, put PDFs and weights on the machine, then `./run_pipeline.sh`.
@@ -561,7 +565,7 @@ The tests that protect the label rules check that three-model class names stay `
 | Tesseract language error | Install the `mar` (or the language you configured) traineddata, or set `tesseract_lang` in the language YAML. |
 | IndicOCR or Chitrapathak device error | Leave `MARATHI_OCR_DEVICE` unset so the run picks CUDA, MPS, or CPU. Set it only to force one of those. |
 | Hugging Face download refused | You passed `--offline`, or the YAML safety flag is doing what it should. Drop `--offline` only for the invocation that should fill `models/cache`. |
-| Review app exits immediately | `manifests/review_batch.jsonl` is missing. Build the queue from the calibration sample first. |
+| Review app exits immediately | `data/output/review_batch.jsonl` is missing. Build the queue from the calibration sample first. |
 | Auto-accept wrote nothing | The threshold was omitted, the lower bound is below it, the class is a disagreement, or every candidate line was sensitive. Read `data/calibration/consensus_quality.txt`. |
 
 ## Further reading

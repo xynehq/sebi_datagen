@@ -53,6 +53,7 @@ if [[ ! -x "$ROOT/.venv/bin/python" ]] || ! env_ready; then
   fi
   echo "Installing the environment."
   "$ROOT/.venv/bin/python" -m pip install --upgrade pip
+  "$ROOT/.venv/bin/python" -m pip install -r "$ROOT/requirements.txt"
   "$ROOT/.venv/bin/python" -m pip install -e "$ROOT"
 else
   echo "Environment already installed."
@@ -73,13 +74,10 @@ else:
 PY
 
 mkdir -p \
-  data/pdfs \
-  data/raw_ocr \
-  data/calibration \
-  data/golden \
-  data/auto_accepted \
-  data/datasets \
-  manifests \
+  data/documents \
+  data/output \
+  data/ocr_captures/pages \
+  data/ocr_captures/text \
   runs \
   models/cache \
   configs/languages
@@ -102,20 +100,9 @@ rm -rf \
   runs \
   reports \
   lightning_logs \
-  data/crops \
-  data/rendered \
-  data/datasets \
-  data/review \
-  data/calibration \
-  data/golden \
-  data/auto_accepted \
-  data/predictions \
-  data/detected \
-  data/verified \
-  data/gold \
-  data/splits \
-  data/scoring
-find manifests -maxdepth 1 -type f \( -name '*.jsonl' -o -name '*.lock' -o -name '*.tmp' \) -delete
+  data/pages \
+  data/crops
+find data/output -maxdepth 1 -type f \( -name '*.jsonl' -o -name '*.lock' -o -name '*.tmp' \) -delete
 
 echo "Starting the pipeline from the published base model."
 found_size=0

@@ -37,8 +37,8 @@ def test_check_and_dry_run(repo_root: Path) -> None:
 
 
 def test_fixture_counts_and_invalidated_review(tmp_path: Path) -> None:
-    manifests = tmp_path / "manifests"
-    manifests.mkdir()
+    manifests = tmp_path / "data" / "output"
+    manifests.mkdir(parents=True)
     crops = [
         _crop("D1", 1),
         _crop("D1", 2),

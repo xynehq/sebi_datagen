@@ -12,6 +12,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from pipeline.records import records_dir
+
 ARCHIVE_DIR = Path("data/review/archive/invalidated_phase10")
 STATUS = "INVALIDATED_REVIEW"
 GOLD_DECISIONS = frozenset({"HUMAN_VERIFIED", "HUMAN_CORRECTED"})
@@ -60,7 +62,7 @@ def ensure_invalidated_archive(root: Path, verified_path: Path | None = None) ->
         payload = json.loads(id_path.read_text(encoding="utf-8"))
         return {str(item["crop_id"]) for item in payload["rows"]}
 
-    source = verified_path or (root / "manifests" / "verified.jsonl")
+    source = verified_path or (records_dir(root) / "verified.jsonl")
     rows: list[dict[str, Any]] = []
     if source.is_file():
         shutil.copy2(source, archive / "verified.jsonl")
@@ -103,7 +105,7 @@ def ensure_invalidated_archive(root: Path, verified_path: Path | None = None) ->
                     "",
                     "These rows are historical review artifacts.",
                     "They are not human gold and must not be merged into training.",
-                    "The original `manifests/verified.jsonl` is left in place.",
+                    "The original `data/output/verified.jsonl` is left in place.",
                     "",
                 ]
             ),

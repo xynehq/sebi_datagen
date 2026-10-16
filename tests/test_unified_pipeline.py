@@ -88,7 +88,7 @@ def test_count_invariant() -> None:
 
 
 def test_invalidated_review_cannot_become_gold(tmp_path: Path) -> None:
-    verified = tmp_path / "manifests" / "verified.jsonl"
+    verified = tmp_path / "data" / "output" / "verified.jsonl"
     verified.parent.mkdir(parents=True)
     historical = {
         "crop_id": "OLD",
@@ -113,7 +113,7 @@ def test_invalidated_review_cannot_become_gold(tmp_path: Path) -> None:
     gold, rejected = select_gold_rows([historical, fresh], blocked)
     assert [row["crop_id"] for row in gold] == ["NEW"]
     assert rejected[0]["reason"] == "INVALIDATED_REVIEW"
-    assert (tmp_path / "manifests" / "verified.jsonl").is_file()
+    assert (tmp_path / "data" / "output" / "verified.jsonl").is_file()
 
 
 def test_rejected_decision_is_not_gold() -> None:
@@ -269,7 +269,7 @@ def test_missing_frozen_exam_does_not_block_the_command(tmp_path: Path) -> None:
         import shutil
 
         shutil.rmtree(frozen)
-    (tmp_path / "manifests" / "documents.jsonl").write_text("", encoding="utf-8")
+    (tmp_path / "data" / "output" / "documents.jsonl").write_text("", encoding="utf-8")
     from pipeline.config import load_config
     from pipeline.preflight import checks_pass, collect_checks
 

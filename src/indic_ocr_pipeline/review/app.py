@@ -303,7 +303,9 @@ def main(argv: list[str] | None = None) -> int:
     if host not in {"127.0.0.1", "localhost"}:
         raise SystemExit("review app may bind only to 127.0.0.1 or localhost")
     if not (settings.manifests_dir / "review_batch.jsonl").exists():
-        raise SystemExit("missing manifests/review_batch.jsonl; run scripts/sample_review.py first")
+        raise SystemExit(
+            "missing data/output/review_batch.jsonl; run scripts/sample_review.py first"
+        )
     app = ReviewApp(settings.repo_root, settings.manifests_dir, settings.review.reviewer_id)
     handler = make_handler(app)
     server = ThreadingHTTPServer((host, port), handler)

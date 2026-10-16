@@ -10,7 +10,7 @@ addopts = "-q"
 [tool.ruff]
 target-version = "py311"
 line-length = 100
-src = ["src", "tests", "pipeline", "evaluation", "training"]
+src = ["src", "tests", "pipeline", "evaluation", "training", "ocr_service"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

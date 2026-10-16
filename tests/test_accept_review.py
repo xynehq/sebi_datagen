@@ -18,7 +18,7 @@ from pipeline.review_pack import (
 
 
 def _consensus(tmp_path: Path) -> None:
-    (tmp_path / "manifests").mkdir()
+    (tmp_path / "data" / "output").mkdir(parents=True)
     row = {
         "crop_id": "DOC_A_C1",
         "document_id": "DOC_A",
@@ -29,7 +29,7 @@ def _consensus(tmp_path: Path) -> None:
         "predictions": {"indicocr": "अ", "chitrapathak": "अ", "tesseract": "अ"},
         "proposed_text": "अ",
     }
-    (tmp_path / "manifests" / "consensus.jsonl").write_text(
+    (tmp_path / "data" / "output" / "consensus.jsonl").write_text(
         json.dumps(row, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
@@ -47,7 +47,7 @@ def test_accept_records_gold_and_refuses_an_agent_reviewer(tmp_path: Path) -> No
     stored = json.loads((tmp_path / "reports/review/decisions.json").read_text(encoding="utf-8"))
     assert stored["rows"][0]["decision"] == "none"
     assert accept_reviews(tmp_path, reviewer_id="operator") == 0
-    assert not (tmp_path / "manifests" / "verified.jsonl").exists()
+    assert not (tmp_path / "data" / "output" / "verified.jsonl").exists()
     save_decisions(
         tmp_path,
         {
@@ -58,7 +58,7 @@ def test_accept_records_gold_and_refuses_an_agent_reviewer(tmp_path: Path) -> No
     assert accept_reviews(tmp_path, reviewer_id="operator") == 0
     verified = [
         json.loads(line)
-        for line in (tmp_path / "manifests" / "verified.jsonl").read_text().splitlines()
+        for line in (tmp_path / "data" / "output" / "verified.jsonl").read_text().splitlines()
     ]
     gold, rejected = select_gold_rows(verified, set())
     assert rejected == []
@@ -183,7 +183,7 @@ def test_continue_records_the_review_and_stops_the_server(tmp_path: Path) -> Non
     assert server.review_confirmed.is_set()
     verified = [
         json.loads(line)
-        for line in (tmp_path / "manifests" / "verified.jsonl").read_text().splitlines()
+        for line in (tmp_path / "data" / "output" / "verified.jsonl").read_text().splitlines()
     ]
     assert verified[0]["gold_text"] == "अ"
     server.server_close()

@@ -1,6 +1,6 @@
 """Hash source PDFs and append document-manifest rows.
 
-This stage reads PDF bytes and writes ``manifests/documents.jsonl``.
+This stage reads PDF bytes and writes ``data/output/documents.jsonl``.
 It does not render pages, read a text layer, or store a transcription.
 """
 

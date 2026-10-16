@@ -38,7 +38,7 @@ def _pdf_bytes(marker: bytes) -> bytes:
 
 
 def test_single_pdf_is_ingested_with_the_file_hash(tmp_path: Path) -> None:
-    documents = tmp_path / "data" / "raw" / "documents"
+    documents = tmp_path / "data" / "documents"
     payload = _pdf_bytes(b"one")
     path = _write_pdf(documents, "order.pdf", payload)
     before = path.read_bytes()
@@ -58,7 +58,7 @@ def test_single_pdf_is_ingested_with_the_file_hash(tmp_path: Path) -> None:
     assert record.sha256 == sha256_bytes(payload)
     assert record.file_size == len(payload)
     assert record.original_filename == "order.pdf"
-    assert record.source_path == "data/raw/documents/order.pdf"
+    assert record.source_path == "data/documents/order.pdf"
     assert record.status is StageStatus.COMPLETE
     assert record.department is None
     assert record.document_type is None
@@ -133,7 +133,7 @@ def test_identical_payload_is_skipped_and_a_conflict_is_rejected(tmp_path: Path)
     record = DocumentRecord(
         document_id="MHGR_000001",
         original_filename="order.pdf",
-        source_path="data/raw/documents/order.pdf",
+        source_path="data/documents/order.pdf",
         sha256=SHA,
         file_size=3,
         status=StageStatus.COMPLETE,
@@ -145,7 +145,7 @@ def test_identical_payload_is_skipped_and_a_conflict_is_rejected(tmp_path: Path)
     changed = DocumentRecord(
         document_id="MHGR_000001",
         original_filename="other.pdf",
-        source_path="data/raw/documents/other.pdf",
+        source_path="data/documents/other.pdf",
         sha256=SHA,
         file_size=3,
         status=StageStatus.COMPLETE,
@@ -219,7 +219,7 @@ def test_malformed_document_record_is_not_written(tmp_path: Path) -> None:
     record = DocumentRecord(
         document_id="MHGR_000001",
         original_filename="order.pdf",
-        source_path="data/raw/documents/order.pdf",
+        source_path="data/documents/order.pdf",
         sha256=SHA,
         file_size=3,
         status=StageStatus.COMPLETE,

@@ -8,7 +8,7 @@ One command processes every PDF already in the source folder, then opens human r
 ./run_pipeline.sh --stage eval
 ```
 
-Put the PDFs in `data/raw/documents/` first. Model paths live in `.env` (see `.env.example`). `--datapoints` caps the review queue and the later train split; whole documents stay in one split. `--stage train` writes that split and does not update model weights. `--stage eval` scores the held-out documents and can be started after train has finished. The review page stays open until you stop it. A person still accepts or corrects each crop. `hindi` and `english` are reserved until a language profile is enabled.
+Put the PDFs in `data/documents/` first. Model paths live in `.env` (see `.env.example`). `--datapoints` caps the review queue and the later train split; whole documents stay in one split. `--stage train` writes that split and does not update model weights. `--stage eval` scores the held-out documents and can be started after train has finished. The review page stays open until you stop it. A person still accepts or corrects each crop. `hindi` and `english` are reserved until a language profile is enabled.
 
 Individual stages remain resumable: completed manifest rows are skipped after their payload is checked, and a crash leaves failed or unfinished rows retryable.
 
@@ -20,15 +20,15 @@ python3 scripts/pipeline_status.py
 
 | Command | Stage | Phase | Behavior today |
 | --- | --- | --- | --- |
-| `scripts/ingest_documents.py` | ingest | 2 | Hashes source PDFs into `manifests/documents.jsonl` |
-| `scripts/render_pages.py` | render | 3 | Renders each PDF page to `data/rendered/pages/` |
-| `scripts/detect_regions.py` | detect | 4 | Writes region boxes to `manifests/regions.jsonl` |
+| `scripts/ingest_documents.py` | ingest | 2 | Hashes source PDFs into `data/output/documents.jsonl` |
+| `scripts/render_pages.py` | render | 3 | Renders each PDF page to `data/pages/` |
+| `scripts/detect_regions.py` | detect | 4 | Writes region boxes to `data/output/regions.jsonl` |
 | `scripts/detect_lines.py` | lines | 5 | Writes physical lines and full-line crops |
 | `scripts/generate_crops.py` | crops | 5 | Exits 2 |
 | `scripts/run_ocr.py` | ocr | 6 | Runs IndicOCR, Chitrapathak, then Tesseract and writes predictions and candidates |
 | `scripts/compare_ocr.py` | compare | 10 | Compares existing predictions and writes the review queue |
 | `scripts/score_candidates.py` | score | 11 | Same ranking pass as compare. The score is not a probability |
-| `scripts/sample_review.py` | review | 12 | Builds stratified `manifests/review_batch.jsonl` |
+| `scripts/sample_review.py` | review | 12 | Builds stratified `data/output/review_batch.jsonl` |
 | `scripts/build_review_manifest.py` | review | 12 | Same as sample_review |
 | `scripts/review_app.py` | review | 12 | Offline localhost HTML reviewer |
 | `scripts/export_review_package.py` | review | 13 | Exits 2 |

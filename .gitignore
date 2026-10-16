@@ -12,6 +12,7 @@ htmlcov/
 tree.txt
 
 .env
+ngrok.yml
 configs/local.yaml
 
 # Local weights and training outputs. Do not push these.
@@ -19,6 +20,7 @@ configs/local.yaml
 models/**/weights/
 models/registry.json
 models/cache/
+model_cache/
 lightning_logs/
 checkpoints/
 **/checkpoints/
@@ -32,10 +34,8 @@ wandb/
 data/
 input/
 
-# Generated ledgers, reports, and pipeline runs.
-manifests/*.jsonl
-manifests/*.lock
-manifests/*.tmp
+# Generated ledgers live under data/output, which data/ already ignores.
+# Reports and pipeline runs.
 reports/
 runs/
 

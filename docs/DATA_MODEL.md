@@ -28,16 +28,16 @@ Boxes are `[x0, y0, x1, y1]` in rendered-page pixels. `x1` and `y1` are exclusiv
 
 | File | Id field | Record |
 | --- | --- | --- |
-| `manifests/documents.jsonl` | `document_id` | `DocumentRecord` |
-| `manifests/pages.jsonl` | `page_id` | `PageRecord` |
-| `manifests/regions.jsonl` | `region_id` | `RegionRecord` |
-| `manifests/lines.jsonl` | `line_id` | `RegionRecord` with `region_type` `line` |
-| `manifests/crops.jsonl` | `crop_id` | `CropRecord` |
-| `manifests/predictions.jsonl` | `prediction_id` | `PredictionRecord` |
-| `manifests/candidates.jsonl` | `candidate_id` | `CandidateRecord` |
-| `manifests/review.jsonl` | `review_id` | `ReviewRecord` |
-| `manifests/verified.jsonl` | `verified_id` | `VerifiedRecord` |
-| `manifests/gold.jsonl` | `sample_id` | `GoldRecord` |
+| `data/output/documents.jsonl` | `document_id` | `DocumentRecord` |
+| `data/output/pages.jsonl` | `page_id` | `PageRecord` |
+| `data/output/regions.jsonl` | `region_id` | `RegionRecord` |
+| `data/output/lines.jsonl` | `line_id` | `RegionRecord` with `region_type` `line` |
+| `data/output/crops.jsonl` | `crop_id` | `CropRecord` |
+| `data/output/predictions.jsonl` | `prediction_id` | `PredictionRecord` |
+| `data/output/candidates.jsonl` | `candidate_id` | `CandidateRecord` |
+| `data/output/review.jsonl` | `review_id` | `ReviewRecord` |
+| `data/output/verified.jsonl` | `verified_id` | `VerifiedRecord` |
+| `data/output/gold.jsonl` | `sample_id` | `GoldRecord` |
 
 `document_date` is the document's own date. `ingested_at`, `rendered_at`, `reviewed_at`, and `verification_timestamp` are ISO-8601 pipeline times.
 

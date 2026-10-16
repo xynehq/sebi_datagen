@@ -585,7 +585,7 @@ def main(argv: list[str] | None = None) -> int:
     settings = load_settings()
     reviews = open_manifest(settings.manifests_dir, "review").load()
     if not reviews:
-        raise SystemExit("manifests/review.jsonl is empty; run Phase 7 first")
+        raise SystemExit("data/output/review.jsonl is empty; run Phase 7 first")
     batch_size = args.n if args.n is not None else settings.review.calibration_batch_size
     items = sample_calibration_batch(
         reviews,

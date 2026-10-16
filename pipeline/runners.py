@@ -19,6 +19,7 @@ from pipeline.dataset_flow import (
 )
 from pipeline.errors import StageFailed
 from pipeline.gold import ensure_invalidated_archive
+from pipeline.records import records_dir
 from pipeline.report import write_report
 
 FIXTURE_CROPS: list[dict[str, Any]] = [
@@ -120,15 +121,15 @@ def run_stage(ctx: Ctx) -> dict[str, Any]:
 def _documents(ctx: Ctx) -> dict[str, Any]:
     if ctx.mode == "fixture":
         rows = [
-            {"document_id": "DOC_A", "source_path": "data/raw/documents/a.pdf"},
-            {"document_id": "DOC_B", "source_path": "data/raw/documents/b.pdf"},
+            {"document_id": "DOC_A", "source_path": "data/documents/a.pdf"},
+            {"document_id": "DOC_B", "source_path": "data/documents/b.pdf"},
         ]
-        write_jsonl(ctx.root / "manifests" / "documents.jsonl", rows)
+        write_jsonl(records_dir(ctx.root) / "documents.jsonl", rows)
         return {"messages": ["2 documents"], "row_counts": {"documents": 2}}
     from indic_ocr_pipeline.pdf.ingest import main as ingest_main
 
     _delegate(ctx, ingest_main)
-    count = len(read_jsonl(ctx.root / "manifests" / "documents.jsonl"))
+    count = len(read_jsonl(records_dir(ctx.root) / "documents.jsonl"))
     return {"messages": [f"{count} documents"], "row_counts": {"documents": count}}
 
 
@@ -138,12 +139,12 @@ def _pages(ctx: Ctx) -> dict[str, Any]:
             {"page_id": "DOC_A_P1", "document_id": "DOC_A"},
             {"page_id": "DOC_B_P1", "document_id": "DOC_B"},
         ]
-        write_jsonl(ctx.root / "manifests" / "pages.jsonl", rows)
+        write_jsonl(records_dir(ctx.root) / "pages.jsonl", rows)
         return {"messages": ["2 pages"], "row_counts": {"pages": 2}}
     from indic_ocr_pipeline.rendering.pages import main as render_main
 
     _delegate(ctx, render_main)
-    count = len(read_jsonl(ctx.root / "manifests" / "pages.jsonl"))
+    count = len(read_jsonl(records_dir(ctx.root) / "pages.jsonl"))
     return {"messages": [f"{count} pages"], "row_counts": {"pages": count}}
 
 
@@ -153,12 +154,12 @@ def _regions(ctx: Ctx) -> dict[str, Any]:
             {"region_id": "DOC_A_R1", "document_id": "DOC_A", "page_id": "DOC_A_P1"},
             {"region_id": "DOC_B_R1", "document_id": "DOC_B", "page_id": "DOC_B_P1"},
         ]
-        write_jsonl(ctx.root / "manifests" / "regions.jsonl", rows)
+        write_jsonl(records_dir(ctx.root) / "regions.jsonl", rows)
         return {"messages": ["2 regions"], "row_counts": {"regions": 2}}
     from indic_ocr_pipeline.detection.regions import main as detect_main
 
     _delegate(ctx, detect_main)
-    count = len(read_jsonl(ctx.root / "manifests" / "regions.jsonl"))
+    count = len(read_jsonl(records_dir(ctx.root) / "regions.jsonl"))
     return {"messages": [f"{count} regions"], "row_counts": {"regions": count}}
 
 
@@ -182,8 +183,8 @@ def _crops(ctx: Ctx) -> dict[str, Any]:
                 }
             )
             lines.append({"line_id": spec["parent_line_id"], "document_id": spec["document_id"]})
-        write_jsonl(ctx.root / "manifests" / "crops.jsonl", crops)
-        write_jsonl(ctx.root / "manifests" / "lines.jsonl", lines)
+        write_jsonl(records_dir(ctx.root) / "crops.jsonl", crops)
+        write_jsonl(records_dir(ctx.root) / "lines.jsonl", lines)
         return {
             "messages": [f"{len(crops)} crops"],
             "row_counts": {"crops": len(crops), "lines": len(lines)},
@@ -191,13 +192,13 @@ def _crops(ctx: Ctx) -> dict[str, Any]:
     from indic_ocr_pipeline.detection.lines import main as lines_main
 
     _delegate(ctx, lines_main)
-    count = len(read_jsonl(ctx.root / "manifests" / "crops.jsonl"))
+    count = len(read_jsonl(records_dir(ctx.root) / "crops.jsonl"))
     return {"messages": [f"{count} crops"], "row_counts": {"crops": count}}
 
 
 def _ocr(ctx: Ctx) -> dict[str, Any]:
     if ctx.mode == "fixture":
-        crops = {row["crop_id"]: row for row in read_jsonl(ctx.root / "manifests" / "crops.jsonl")}
+        crops = {row["crop_id"]: row for row in read_jsonl(records_dir(ctx.root) / "crops.jsonl")}
         specs = {spec["crop_id"]: spec for spec in FIXTURE_CROPS}
         predictions = []
         for crop_id, crop in crops.items():
@@ -215,7 +216,7 @@ def _ocr(ctx: Ctx) -> dict[str, Any]:
                         "status": "complete",
                     }
                 )
-        write_jsonl(ctx.root / "manifests" / "predictions.jsonl", predictions)
+        write_jsonl(records_dir(ctx.root) / "predictions.jsonl", predictions)
         return {
             "messages": [f"{len(predictions)} predictions"],
             "row_counts": {"predictions": len(predictions)},
@@ -224,14 +225,14 @@ def _ocr(ctx: Ctx) -> dict[str, Any]:
 
     _prepare_ocr_models(ctx)
     _delegate(ctx, ocr_main)
-    count = len(read_jsonl(ctx.root / "manifests" / "predictions.jsonl"))
+    count = len(read_jsonl(records_dir(ctx.root) / "predictions.jsonl"))
     return {"messages": [f"{count} predictions"], "row_counts": {"predictions": count}}
 
 
 def _compare(ctx: Ctx) -> dict[str, Any]:
     from pipeline.budget import select_crop_ids
 
-    crops = read_jsonl(ctx.root / "manifests" / "crops.jsonl")
+    crops = read_jsonl(records_dir(ctx.root) / "crops.jsonl")
     limit = ctx.config.get("dataset_size")
     crop_ids = set(select_crop_ids(crops, int(limit))) if limit else None
     records = build_consensus(ctx.root, crop_ids)
@@ -479,9 +480,9 @@ def _report(ctx: Ctx) -> dict[str, Any]:
     summary = {
         "run_id": ctx.run_dir.name,
         "counts": {
-            "crops": len(read_jsonl(ctx.root / "manifests" / "crops.jsonl")),
-            "predictions": len(read_jsonl(ctx.root / "manifests" / "predictions.jsonl")),
-            "candidates": len(read_jsonl(ctx.root / "manifests" / "consensus.jsonl")),
+            "crops": len(read_jsonl(records_dir(ctx.root) / "crops.jsonl")),
+            "predictions": len(read_jsonl(records_dir(ctx.root) / "predictions.jsonl")),
+            "candidates": len(read_jsonl(records_dir(ctx.root) / "consensus.jsonl")),
             "train": len(read_jsonl(ctx.root / "data" / "datasets" / "train.jsonl")),
             "val": len(read_jsonl(ctx.root / "data" / "datasets" / "val.jsonl")),
         },
@@ -542,7 +543,7 @@ def _seed_fixture_reviews(root: Path) -> None:
         "metadata": {"decision_label": "human_verified", "reviewer_app_version": "phase8-review-1"},
         "original_candidate_texts": {"indicocr": "जुने", "chitrapathak": "जुने", "tesseract": "जुने"},
     }
-    verified = root / "manifests" / "verified.jsonl"
+    verified = records_dir(root) / "verified.jsonl"
     write_jsonl(verified, [historical])
     ensure_invalidated_archive(root)
     fresh = [

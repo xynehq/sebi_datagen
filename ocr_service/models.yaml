@@ -1,0 +1,39 @@
+# Hugging Face repo ids only. This file must not contain a machine path.
+# A model stays in the list when its weights are absent. The first OCR call
+# downloads the missing repo into MODEL_CACHE_DIR.
+
+models:
+  - id: chitrapathak-2
+    label: Chitrapathak 2
+    base: krutrim-ai-labs/Chitrapathak-2
+    description: >
+      Base page reader from krutrim-ai-labs/Chitrapathak-2. Use this for
+      Marathi pages. It writes Devanagari.
+
+  - id: chitrapathak-marguj
+    label: Chitrapathak MarGuj
+    base: krutrim-ai-labs/Chitrapathak-2
+    adapter: snxtyle/chitrapathak-MarGuj
+    description: >
+      Marathi-then-Gujarati LoRA, snxtyle/chitrapathak-MarGuj, on
+      Chitrapathak 2. It writes Gujarati, including on Marathi pages.
+      Use it for Gujarati documents.
+
+  - id: indicocr
+    label: IndicOCR
+    family: indicocr
+    base: bodhan-ai/indic-ocr
+    subfolder: weights/ocr
+    description: >
+      Published IndicOCR page reader, bodhan-ai/indic-ocr. Printed text
+      across Indian languages, including Marathi and Gujarati.
+
+  - id: indicocr-marguj
+    label: IndicOCR MarGuj
+    family: indicocr
+    base: bodhan-ai/indic-ocr
+    subfolder: weights/ocr
+    adapter: snxtyle/IndicOCR-MarGuj
+    description: >
+      Marathi-then-Gujarati LoRA, snxtyle/IndicOCR-MarGuj, on the
+      IndicOCR recognizer. Use it for Gujarati lines. It writes Gujarati.

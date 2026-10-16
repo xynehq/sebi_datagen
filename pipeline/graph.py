@@ -35,7 +35,7 @@ STAGES: dict[str, Stage] = {
         (),
         ("source", "paths"),
         (),
-        ("manifests/documents.jsonl",),
+        ("data/output/documents.jsonl",),
         "Put source PDFs in the documents directory, then run ./run_pipeline.sh",
     ),
     "render": Stage(
@@ -45,7 +45,7 @@ STAGES: dict[str, Stage] = {
         ("ingest",),
         ("paths",),
         ("configs/rendering.yaml",),
-        ("manifests/pages.jsonl",),
+        ("data/output/pages.jsonl",),
         "Fix rendering, then run ./run_pipeline.sh",
     ),
     "detect": Stage(
@@ -55,7 +55,7 @@ STAGES: dict[str, Stage] = {
         ("render",),
         ("paths",),
         ("configs/detection.yaml",),
-        ("manifests/regions.jsonl",),
+        ("data/output/regions.jsonl",),
         "Fix region detection, then run ./run_pipeline.sh",
     ),
     "crop": Stage(
@@ -65,7 +65,7 @@ STAGES: dict[str, Stage] = {
         ("detect",),
         ("paths",),
         ("configs/detection.yaml", "configs/cropping.yaml"),
-        ("manifests/lines.jsonl", "manifests/crops.jsonl"),
+        ("data/output/lines.jsonl", "data/output/crops.jsonl"),
         "Fix line detection, then run ./run_pipeline.sh",
     ),
     "ocr": Stage(
@@ -75,7 +75,7 @@ STAGES: dict[str, Stage] = {
         ("crop",),
         ("ocr", "paths"),
         ("configs/ocr.yaml",),
-        ("manifests/predictions.jsonl",),
+        ("data/output/predictions.jsonl",),
         "Fix the OCR backend, then run ./run_pipeline.sh",
     ),
     "compare": Stage(
@@ -85,7 +85,7 @@ STAGES: dict[str, Stage] = {
         ("ocr",),
         ("ocr",),
         (),
-        ("manifests/consensus.jsonl",),
+        ("data/output/consensus.jsonl",),
         "Fix comparison, then run ./run_pipeline.sh",
     ),
     "calibrate": Stage(

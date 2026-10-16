@@ -35,8 +35,8 @@ Selection then scores those checkpoints with strict CER. Frozen-100 runs once
 after that choice.
 | 14 | Report | `pipeline.report` | After frozen metrics exist |
 
-Compare writes `manifests/consensus.jsonl`. It does not rewrite
-`manifests/candidates.jsonl`.
+Compare writes `data/output/consensus.jsonl`. It does not rewrite
+`data/output/candidates.jsonl`.
 
 ## Resume
 
@@ -72,7 +72,7 @@ something must run again.
 ```
 
 `--fixture` runs the synthetic corpus under `runs/fixture_workspace` and does
-not touch `manifests/` or `data/` in the repository root.
+not touch `data/` in the repository root.
 
 ## Failure
 

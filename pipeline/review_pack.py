@@ -17,6 +17,7 @@ from urllib.parse import unquote, urlparse
 
 from pipeline.dataset_flow import read_jsonl
 from pipeline.gold import BLOCKED_REVIEWERS
+from pipeline.records import records_dir
 
 PACK_DIR = Path("reports/review")
 DECISIONS_NAME = "decisions.json"
@@ -83,7 +84,7 @@ def load_decisions(root: Path, rows: list[dict[str, Any]], reviewer_id: str) -> 
 def save_decisions(root: Path, payload: dict[str, Any]) -> Path:
     """Write the decisions file the accept command reads."""
     root = root.resolve()
-    rows = read_jsonl(root / "manifests" / "consensus.jsonl")
+    rows = read_jsonl(records_dir(root) / "consensus.jsonl")
     if not rows:
         raise ReviewSaveError("No consensus rows to review.")
     if not isinstance(payload, dict) or not isinstance(payload.get("rows"), list):
@@ -131,7 +132,7 @@ def save_decisions(root: Path, payload: dict[str, Any]) -> Path:
 def write_review_pack(root: Path, *, reviewer_id: str = "operator") -> Path:
     """Write the review page and a decisions file the accept command reads."""
     root = root.resolve()
-    rows = read_jsonl(root / "manifests" / "consensus.jsonl")
+    rows = read_jsonl(records_dir(root) / "consensus.jsonl")
     if not rows:
         raise FileNotFoundError(
             "No consensus rows yet. Run through calibrate, then open the review page."

@@ -17,6 +17,26 @@ PDFs
 
 Three OCR models read each line: IndicOCR, Chitrapathak, and Tesseract. Their agreement is a suggestion. A line becomes training gold only after a person accepts or corrects it. Training starts from the published PARSeq base for that language and fine-tunes it for one epoch.
 
+## Page reader
+
+Indic Vachak - SEBI is a separate app in `ocr_service/`. It reads a whole PNG, JPEG, or PDF page. It does not run this pipeline, and a model reading is not training gold.
+
+```bash
+./ocr_service/run.sh
+```
+
+One public address, while this machine is running the app and ngrok:
+
+https://vivacious-cure-pouncing.ngrok-free.dev
+
+On this machine the same app is `http://127.0.0.1:7860/`. Anyone can open that public page or call `POST /v1/ocr` on it. No API key is required unless `OCR_API_KEY` is set in `.env`.
+
+Finished readings are written to `data/ocr_captures/` (`pages/`, `text/`, and `captures.jsonl`). Each row is `source: model_capture` and `gold: false`. A person still has to accept or correct the text before it can enter `data/datasets/`.
+
+There is one `requirements.txt`, one `.env.example`, and one `.gitignore`, all at the repository root. Copy `.env.example` to `.env`. The ngrok token stays in `.env` and in `ocr_service/ngrok.yml`. Both are gitignored.
+
+The screen, models, API, and tunnel steps are in [ocr_service/README.md](ocr_service/README.md).
+
 ## What you need
 
 - Python 3.11 or newer
@@ -34,7 +54,7 @@ chmod +x setup.sh run_pipeline.sh
 ./setup.sh
 ```
 
-`./setup.sh` creates `.venv` and installs this project only when those packages are missing. When they are already installed, it goes straight to the pipeline. It deletes generated outputs from the last run, then runs the full Marathi pipeline from the PDFs. Source PDFs in `data/raw/` stay. Running it again starts that pipeline over. It prints the device it found: CUDA, then Apple MPS, then CPU. The review page opens in the browser, and the command waits there until you confirm.
+`./setup.sh` creates `.venv` and installs this project only when those packages are missing. When they are already installed, it goes straight to the pipeline. It deletes generated outputs from the last run, then runs the full Marathi pipeline from the PDFs. Source PDFs in `data/documents/` stay. Running it again starts that pipeline over. It prints the device it found: CUDA, then Apple MPS, then CPU. The review page opens in the browser, and the command waits there until you confirm.
 
 Copy the environment file and fill in the paths you have:
 
@@ -76,7 +96,7 @@ A small synthetic run needs no weights:
 
 ## Put the PDFs in place
 
-Marathi PDFs go in `data/raw/documents`, or pass another folder:
+Marathi PDFs go in `data/documents`, or pass another folder:
 
 ```bash
 ./run_pipeline.sh --language marathi --input-dir /path/to/pdfs
@@ -90,7 +110,7 @@ Use more than one PDF. Splits are by document. With a single document, that docu
 ./setup.sh
 ```
 
-That one command installs the environment when needed, clears generated outputs, and runs every stage on every PDF in `data/raw/documents`. Training starts from the published Marathi base. The review page opens when the lines are ready, and the command continues after you confirm.
+That one command installs the environment when needed, clears generated outputs, and runs every stage on every PDF in `data/documents`. Training starts from the published Marathi base. The review page opens when the lines are ready, and the command continues after you confirm.
 
 The default dataset size is all lines. Pass a number only when you want a smaller run:
 
@@ -150,7 +170,7 @@ You can also open it yourself:
 
 `--reviewer` must be a real person id. `agent`, `auto`, `assistant`, and `cursor` are refused.
 
-This command writes the decisions into `manifests/verified.jsonl`, then continues:
+This command writes the decisions into `data/output/verified.jsonl`, then continues:
 
 1. **Export** builds `data/datasets/train.jsonl`, `val.jsonl`, and `test.jsonl` from accepted and corrected lines. Rejected lines and lines still marked not reviewed stay out.
 2. **Train** fine-tunes PARSeq for 1 epoch (`configs/training.yaml`). While training is running, validation runs at 30% and 70% of the steps. The checkpoint with the better score is kept.
@@ -213,7 +233,7 @@ An explicit `--model-path` is used as given. A missing explicit path is an error
 
 | Language | How to run it |
 | --- | --- |
-| Marathi | `./run_pipeline.sh --language marathi`. PDFs in `data/raw/documents`. Tesseract language `mar+eng`. Existing data stays in `data/`, `manifests/`, and `runs/`. |
+| Marathi | `./run_pipeline.sh --language marathi`. PDFs in `data/documents`. Tesseract language `mar+eng`. Existing data stays in `data/` and `runs/`. |
 | Gujarati | `./run_pipeline.sh --language gujarati --stage eval --model-path /path/to/adapter`. This checks a PEFT adapter against its base model. This repository does not train a Chitrapathak LoRA. |
 | Bengali | `./run_pipeline.sh --language bengali --stage dataset`. Reads `data/bengali/source/labels.jsonl` and `data/bengali/source/images/`. Each row needs `image_filename` and `expected_text`. `data/bengali/real10k` is written only when that source has enough labeled images. |
 
@@ -223,12 +243,13 @@ Language files are in `configs/languages/`. A model is described as supporting a
 
 | What | Where |
 | --- | --- |
-| Source PDFs | `data/raw/documents` |
-| Page images and line crops | `data/rendered/pages`, `data/crops/full` |
-| Stage records | `manifests/*.jsonl` |
-| Human decisions | `manifests/verified.jsonl` |
+| Source PDFs | `data/documents` |
+| Page images and line crops | `data/pages`, `data/crops` |
+| Stage records | `data/output/*.jsonl` |
+| Human decisions | `data/output/verified.jsonl` |
 | Review page | `reports/review/index.html` and `reports/review/decisions.json` |
 | Train / validation / test | `data/datasets/` |
+| Page-reader captures | `data/ocr_captures/`. Model output, not gold. |
 | One run | `runs/<date>_<n>/` |
 | Shared settings | `configs/*.yaml` |
 | Your machine only | `configs/local.yaml` (copy `configs/local.yaml.example`), `.env` |

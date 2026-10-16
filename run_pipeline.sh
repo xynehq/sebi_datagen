@@ -31,6 +31,7 @@ elif command -v python3 >/dev/null 2>&1 && has_packages "$(command -v python3)";
 else
   python3 -m venv "$ROOT/.venv"
   "$ROOT/.venv/bin/python" -m pip install --upgrade pip
+  "$ROOT/.venv/bin/python" -m pip install -r "$ROOT/requirements.txt"
   "$ROOT/.venv/bin/python" -m pip install -e "$ROOT"
   PY="$ROOT/.venv/bin/python"
 fi

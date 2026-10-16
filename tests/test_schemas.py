@@ -93,7 +93,7 @@ def test_page_text_layer_cannot_be_relabeled_as_truth() -> None:
         document_id="MHGR_000001",
         page_id="MHGR_000001_P0001",
         page_number=1,
-        image_path="data/rendered/pages/MHGR_000001/page_0001.png",
+        image_path="data/pages/MHGR_000001/page_0001.png",
         width=1000,
         height=1400,
         dpi=200,
@@ -110,7 +110,7 @@ def test_document_record_round_trip() -> None:
     record = DocumentRecord(
         document_id="MHGR_000001",
         original_filename="order.pdf",
-        source_path="data/raw/documents/order.pdf",
+        source_path="data/documents/order.pdf",
         sha256=SHA,
         file_size=32,
         department="revenue",

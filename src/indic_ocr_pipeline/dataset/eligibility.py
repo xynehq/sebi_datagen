@@ -1,7 +1,7 @@
 """Gold eligibility validation without export.
 
 Only human_verified and human_corrected rows may become gold. This module
-checks proposed gold rows and never writes manifests/gold.jsonl.
+checks proposed gold rows and never writes data/output/gold.jsonl.
 """
 
 from __future__ import annotations

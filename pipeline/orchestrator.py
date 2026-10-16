@@ -13,6 +13,7 @@ from pipeline.errors import StageFailed
 from pipeline.fingerprints import stage_fingerprints
 from pipeline.graph import DATASET_GROUP, EVAL_GROUP, ORDER, STAGES, TRAIN_GROUP, resolve_stage_name
 from pipeline.preflight import checks_pass, collect_checks, format_checks
+from pipeline.records import records_dir
 from pipeline.runinfo import GRAPH, next_run_id, publish_latest, read_latest
 from pipeline.runners import Ctx, run_stage
 from pipeline.state import (
@@ -88,7 +89,7 @@ def _has_gold(root: Path) -> bool:
 
     invalidated = load_invalidated_ids(root)
     gold, _rejected = select_gold_rows(
-        read_jsonl(root / "manifests" / "verified.jsonl"),
+        read_jsonl(records_dir(root) / "verified.jsonl"),
         invalidated,
     )
     return bool(gold)

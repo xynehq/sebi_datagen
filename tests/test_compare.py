@@ -237,7 +237,7 @@ def test_ranking_appends_new_crops_without_touching_complete_reviews(
             "parent_line_id": "MHGR_000001_P0001_L0002",
             "region_id": "MHGR_000001_P0001_R0001",
             "image_path": (
-                "data/crops/full/MHGR_000001/MHGR_000001_P0001/"
+                "data/crops/MHGR_000001/MHGR_000001_P0001/"
                 "MHGR_000001_P0001_L0002.png"
             ),
         }
@@ -418,7 +418,7 @@ def _write_case(
         "page_id": "MHGR_000001_P0001",
         "parent_line_id": "MHGR_000001_P0001_L0001",
         "region_id": "MHGR_000001_P0001_R0001",
-        "image_path": "data/crops/full/MHGR_000001/MHGR_000001_P0001/MHGR_000001_P0001_L0001.png",
+        "image_path": "data/crops/MHGR_000001/MHGR_000001_P0001/MHGR_000001_P0001_L0001.png",
     }
     line = {
         "line_id": "MHGR_000001_P0001_L0001",

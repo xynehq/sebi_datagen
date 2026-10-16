@@ -9,6 +9,7 @@ from typing import Any
 
 from pipeline.dataset_flow import read_jsonl, write_jsonl
 from pipeline.gold import BLOCKED_REVIEWERS
+from pipeline.records import records_dir
 from pipeline.review_pack import DECISIONS_NAME, PACK_DIR, default_decisions
 
 
@@ -30,7 +31,7 @@ def accept_reviews(
             "reviewer_id must be a person. cursor, agent, assistant, and auto are refused.",
         )
         return 2
-    rows = read_jsonl(root / "manifests" / "consensus.jsonl")
+    rows = read_jsonl(records_dir(root) / "consensus.jsonl")
     if not rows:
         print("No consensus rows to accept. Run through calibrate first.")
         return 2
@@ -54,7 +55,7 @@ def accept_reviews(
                 "reviewer_id must be a person. cursor, agent, assistant, and auto are refused.",
             )
             return 2
-    verified_path = root / "manifests" / "verified.jsonl"
+    verified_path = records_dir(root) / "verified.jsonl"
     existing = {str(row.get("crop_id")): row for row in read_jsonl(verified_path)}
     written = 0
     skipped = 0

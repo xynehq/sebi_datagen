@@ -20,6 +20,7 @@ from pipeline.golden_sets import (
     write_quality,
 )
 from pipeline.quality import quality_report
+from pipeline.records import records_dir
 
 
 class CountError(RuntimeError):
@@ -62,10 +63,10 @@ def count_summary(crops: int, predictions: int, candidates: int) -> list[str]:
 
 def build_consensus(root: Path, crop_ids: set[str] | None = None) -> list[dict[str, Any]]:
     """Build one candidate per crop from the three OCR prediction rows."""
-    crops = read_jsonl(root / "manifests" / "crops.jsonl")
+    crops = read_jsonl(records_dir(root) / "crops.jsonl")
     if crop_ids is not None:
         crops = [row for row in crops if str(row.get("crop_id")) in crop_ids]
-    predictions = read_jsonl(root / "manifests" / "predictions.jsonl")
+    predictions = read_jsonl(records_dir(root) / "predictions.jsonl")
     if crop_ids is not None:
         predictions = [row for row in predictions if str(row.get("crop_id")) in crop_ids]
     by_crop: dict[str, dict[str, str | None]] = defaultdict(dict)
@@ -96,12 +97,12 @@ def build_consensus(root: Path, crop_ids: set[str] | None = None) -> list[dict[s
             }
         )
     assert_ocr_counts(len(crops), len(predictions), len(records), backends=len(backends))
-    write_jsonl(root / "manifests" / "consensus.jsonl", records)
+    write_jsonl(records_dir(root) / "consensus.jsonl", records)
     return records
 
 
 def write_calibration(root: Path, config: dict[str, Any]) -> list[dict[str, Any]]:
-    rows = read_jsonl(root / "manifests" / "consensus.jsonl")
+    rows = read_jsonl(records_dir(root) / "consensus.jsonl")
     calibration = config.get("calibration") or {}
     seed = int(calibration.get("seed", config.get("seed", 3407)))
     budget = config.get("human_audit_budget")
@@ -122,7 +123,7 @@ def write_calibration(root: Path, config: dict[str, Any]) -> list[dict[str, Any]
 def export_datasets(root: Path, config: dict[str, Any]) -> dict[str, int]:
     """Write train and validation manifests from human gold only."""
     invalidated = ensure_invalidated_archive(root)
-    verified = read_jsonl(root / "manifests" / "verified.jsonl")
+    verified = read_jsonl(records_dir(root) / "verified.jsonl")
     gold, rejected = select_gold_rows(verified, invalidated)
     write_jsonl(root / "data" / "review" / "gold_rejected.jsonl", rejected)
     dataset_cfg = _read_yaml(root / "configs" / "dataset.yaml")
@@ -146,7 +147,7 @@ def export_datasets(root: Path, config: dict[str, Any]) -> dict[str, int]:
     write_jsonl(root / paths.get("val_manifest", "data/datasets/val.jsonl"), grouped["val"])
     write_jsonl(root / "data" / "datasets" / "test.jsonl", grouped["test"])
     golden = write_golden(root, gold)
-    consensus = read_jsonl(root / "manifests" / "consensus.jsonl")
+    consensus = read_jsonl(records_dir(root) / "consensus.jsonl")
     by_crop = {str(row.get("crop_id")): row for row in consensus}
     audits = []
     for row in verified:

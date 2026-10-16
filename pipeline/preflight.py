@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pipeline.records import records_dir
+
 
 @dataclass
 class Check:
@@ -68,16 +70,16 @@ def collect_checks(root: Path, config: dict[str, Any], *, fixture: bool = False)
         )
     )
     source_names = [
-        (config.get("source") or {}).get("documents_dir", "data/raw/documents"),
+        (config.get("source") or {}).get("documents_dir", "data/documents"),
         config.get("source_dir", "input/pdfs"),
-        config.get("also_scan", "data/raw/documents"),
+        config.get("also_scan", "data/documents"),
     ]
     pdfs = []
     for name in source_names:
         source = root / str(name)
         if source.is_dir():
             pdfs.extend(source.glob("*.pdf"))
-    documents = root / "manifests" / "documents.jsonl"
+    documents = records_dir(root) / "documents.jsonl"
     have_source = bool(pdfs) or documents.is_file() or fixture
     checks.append(
         Check(

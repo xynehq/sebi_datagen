@@ -12,7 +12,7 @@ training repository.
 configs/                  stage YAML (render, detect, ocr, review, splits)
 src/indic_ocr_pipeline/  ingestion, rendering, detection, crops, OCR, review
 scripts/                  one command per dataset stage
-manifests/                documents, pages, regions, lines, crops, predictions
+data/output/                documents, pages, regions, lines, crops, predictions
 data/                     PDFs, page images, crops, predictions
 docs/                     label, review, and split policy
 tests/                    dataset stage tests
@@ -36,7 +36,7 @@ Current corpus, left in place:
 
 * 20 documents, 145 pages, 4,189 crops
 * 12,567 OCR predictions (3 × 4,189)
-* 4,189 legacy candidate rows in `manifests/candidates.jsonl`
+* 4,189 legacy candidate rows in `data/output/candidates.jsonl`
 * 1,288 verified rows. These are archived as `INVALIDATED_REVIEW` and are not gold.
 
 ## Old repository B — training and evaluation (`IndicPhotoOCR`)
@@ -116,7 +116,7 @@ invalidate ingest, render, region detection, or line detection.
 
 ## Risks
 
-* Historical `manifests/verified.jsonl` looks like human review and is not.
+* Historical `data/output/verified.jsonl` looks like human review and is not.
   Export snapshots those crop ids once and refuses them as gold.
 * Production training needs a local base checkpoint and real human gold.
   Without those, training stops. That is intentional.
@@ -131,7 +131,7 @@ invalidate ingest, render, region detection, or line detection.
 1. Vendor `evaluation/` and `IndicPhotoOCR/`.
 2. Copy the frozen exam to `frozen/marathi100/`.
 3. Add the orchestrator, gold gate, and launchers.
-4. On the first export, copy `manifests/verified.jsonl` to
+4. On the first export, copy `data/output/verified.jsonl` to
    `data/review/archive/invalidated_phase10/` and record the crop ids.
    The original manifest stays where it is.
 5. New human decisions committed after that snapshot can enter gold when they

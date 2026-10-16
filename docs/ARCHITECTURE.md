@@ -6,7 +6,7 @@ Phase 1 provides the contracts every later stage must honor. Stages do not run O
 
 | Layer | What it is | Where it lives |
 | --- | --- | --- |
-| Source truth | Rendered page image from the official PDF | `data/rendered/pages/` and `pages.jsonl` |
+| Source truth | Rendered page image from the official PDF | `data/pages/` and `pages.jsonl` |
 | OCR candidate | Text proposed by a local backend | `predictions.jsonl` |
 | Candidate consensus | Comparison and review-priority score | `candidates.jsonl` |
 | Human decision | Accept, correct, reject, or mark uncertain | `review.jsonl`, `verified.jsonl` |
