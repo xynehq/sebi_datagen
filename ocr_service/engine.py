@@ -8,9 +8,11 @@ from collections.abc import Iterator
 
 from PIL import Image
 
+from reading import CHITRA_PROMPT, clean_reading
 from registry import ModelError, ModelSpec, ensure_weights, get_spec
 
-_CHITRA_PROMPT = "Perform OCR on this image and transcribe all visible text exactly as it appears."
+_CHITRA_PROMPT = CHITRA_PROMPT
+_CHITRA_REPETITION_PENALTY = 1.05
 _INDIC_PROMPT = (
     "Transcribe the text in this image. Write any mathematical expressions in LaTeX, "
     "using $...$ for inline math and $$...$$ for display equations."
@@ -42,6 +44,7 @@ class Engine:
         self._prompt = _CHITRA_PROMPT
         self._eos: int | None = None
         self._max_side: int | None = None
+        self._repetition_penalty = 1.0
 
     @property
     def device(self) -> str:
@@ -98,11 +101,13 @@ class Engine:
             self._prompt = _INDIC_PROMPT
             self._eos = _INDIC_EOS
             self._max_side = _INDIC_MAX_SIDE
+            self._repetition_penalty = 1.0
         else:
             self._system = "You are a helpful assistant."
             self._prompt = _CHITRA_PROMPT
             self._eos = None
             self._max_side = None
+            self._repetition_penalty = _CHITRA_REPETITION_PENALTY
         self._loaded_id = spec.id
 
     def _unload(self) -> None:
@@ -149,6 +154,8 @@ class Engine:
         if do_sample:
             kwargs["temperature"] = temperature
             kwargs["top_p"] = 0.9
+        if self._repetition_penalty != 1.0:
+            kwargs["repetition_penalty"] = self._repetition_penalty
         if self._eos is not None:
             kwargs["eos_token_id"] = self._eos
         streamer = TextIteratorStreamer(
@@ -230,7 +237,4 @@ def _fit_side(image: Image.Image, limit: int | None) -> Image.Image:
 
 
 def _clean(text: str) -> str:
-    stripped = text.strip()
-    if stripped.lower().startswith("assistant"):
-        return stripped[len("assistant") :].strip()
-    return stripped
+    return clean_reading(text, _CHITRA_PROMPT, _INDIC_PROMPT)

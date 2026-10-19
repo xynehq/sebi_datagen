@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import tempfile
 import time
 from pathlib import Path
@@ -11,11 +10,11 @@ import gradio as gr
 
 from capture import save_capture
 from engine import Engine
+from reading import reading_markdown, reading_raw
 from registry import ModelError, load_specs, model_status
 from render import RenderError, page_count, prepare
 
 _DEFAULT_MODEL = "chitrapathak-2"
-_LIST_BREAK = re.compile(r"(?<=\S)[ \t]+(?=[०-९0-9]{1,3}\.\s)")
 _ROOT = Path(__file__).resolve().parent
 _EXAMPLES = (
     (_ROOT / "examples" / "english_notice.png", "English notice"),
@@ -23,17 +22,6 @@ _EXAMPLES = (
     (_ROOT / "examples" / "gujarati_sample.png", "Gujarati sample"),
     (_ROOT / "examples" / "registration_slip.png", "Registration slip"),
 )
-
-
-def _as_lines(text: str) -> str:
-    """Keep each list item on its own line, the way a page reader shows it."""
-    text = _LIST_BREAK.sub("\n", text.replace("\r\n", "\n"))
-    return "\n".join(line.strip() for line in text.split("\n") if line.strip())
-
-
-def _as_markdown(text: str) -> str:
-    """Markdown collapses a single newline, so each line becomes its own block."""
-    return "\n\n".join(_as_lines(text).split("\n"))
 
 
 def _word_count(text: str) -> int:
@@ -151,17 +139,17 @@ def build_demo(engine: Engine) -> gr.Blocks:
                 now = time.perf_counter()
                 if started is None:
                     started = now
-                lines = _as_lines(shown)
+                raw = reading_raw(shown)
                 speed_html = _links_html(
                     dataset,
                     finetune,
-                    _speed_label(_word_count(lines), now - started),
+                    _speed_label(_word_count(raw), now - started),
                     device_name,
                 )
                 if streaming:
                     yield (
-                        _as_markdown(shown),
-                        lines,
+                        reading_markdown(shown),
+                        raw,
                         prepared.info,
                         prepared.image,
                         speed_html,
@@ -176,10 +164,10 @@ def build_demo(engine: Engine) -> gr.Blocks:
                         speed_html,
                         hidden,
                     )
-            lines = _as_lines(shown)
+            raw = reading_raw(shown)
             save_capture(
                 image=prepared.image,
-                text=lines,
+                text=raw,
                 source_name=Path(file_path).name,
                 model=model_id,
                 page=prepared.page,
@@ -192,15 +180,15 @@ def build_demo(engine: Engine) -> gr.Blocks:
             speed_html = _links_html(
                 dataset,
                 finetune,
-                _speed_label(_word_count(lines), elapsed),
+                _speed_label(_word_count(raw), elapsed),
                 device_name,
             )
             export = (
-                gr.update(value=_write_export(lines), visible=True)
-                if lines.strip()
+                gr.update(value=_write_export(raw), visible=True)
+                if raw.strip()
                 else hidden
             )
-            yield _as_markdown(shown), lines, prepared.info, prepared.image, speed_html, export
+            yield reading_markdown(shown), raw, prepared.info, prepared.image, speed_html, export
         except ModelError as exc:
             message = str(exc)
             yield message, message, prepared.info, prepared.image, links, hidden

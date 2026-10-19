@@ -37,7 +37,7 @@ Copy `.env.example` to `.env` at the repository root when you need a private Hug
 2. Upload a PNG, JPEG, or PDF, or open **Example documents** and click an image.
 3. For a PDF, pick the page and the DPI. Images ignore DPI.
 4. Set temperature, streaming, and the longest text the model may write.
-5. Click **Extract text**. The rendered reading stays above. **Raw Markdown Output** stays below, with the original line breaks.
+5. Click **Extract text**. The rendered reading stays above. **Raw Markdown Output** stays below. Chitrapathak is asked for clean markdown: `#` titles, a markdown table with one row per item, and the clause number on the same line as the clause. That is the text `/v1/ocr` returns, so a fine-tune trained on the same shape can replace the model without changing the caller. IndicOCR stays a plain transcription. Repeated lines and code fences are removed before the text is shown.
 6. While text is arriving, words per second show on the same line as **Dataset** and **Finetuning**.
 7. When the reading finishes, **Export** appears under the extracted text and downloads that text as a `.txt` file.
 8. **Clear** resets the page, including temperature and streaming.
@@ -88,6 +88,8 @@ curl -s -F "file=@ocr_service/examples/english_notice.png" \
 ```
 
 `POST /v1/ocr/stream` uses the same form fields. Add `-N`. Each event is the full text so far: `{"text": "..."}`. The last event is `{"done": true}`.
+
+For `chitrapathak-2` and `chitrapathak-marguj`, `text` is markdown. A title is a `#` or `##` line. A table keeps each item on its own row. A clause keeps its number, as in `१३. तुम्हांस आवश्यकता…`. The image is sent before that instruction, with the system line `You are a helpful assistant.` IndicOCR ids still return plain transcription, including LaTeX for math.
 
 Anyone can open the site or call the API at that same address. No API key is required unless `OCR_API_KEY` is set.
 
