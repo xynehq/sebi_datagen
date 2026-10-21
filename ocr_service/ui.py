@@ -75,12 +75,12 @@ def build_demo(engine: Engine) -> gr.Blocks:
     finetune = "https://huggingface.co/snxtyle"
     links = _links_html(dataset, finetune)
 
-    def info_text(model_id: str) -> str:
-        """Return formatted model info string."""
+    def info_text(model_id: str):
+        """Refresh description, base, and adapter when the Model changes."""
         try:
             spec = next(item for item in load_specs() if item.id == model_id)
         except StopIteration:
-            return "Unknown model."
+            return gr.update(value=f"Unknown model: `{model_id}`.")
         status = model_status(spec)
         state = {
             "ready": "Weights are on this machine.",
@@ -88,10 +88,14 @@ def build_demo(engine: Engine) -> gr.Blocks:
             "repo_not_set": status.get("detail") or "Repo id is not set.",
         }.get(str(status["status"]), str(status["status"]))
         adapter = spec.adapter or "none"
-        return (
-            f"**Description:** {spec.description}\n\n"
-            f"**Weights:** {state}\n\n"
-            f"**Base:** `{spec.base}`  \n**Adapter:** `{adapter}`"
+        return gr.update(
+            value=(
+                f"**Model:** `{spec.id}`\n\n"
+                f"**Description:** {spec.description}\n\n"
+                f"**Weights:** {state}\n\n"
+                f"**Base:** `{spec.base}`\n\n"
+                f"**Adapter:** `{adapter}`"
+            )
         )
 
     def preview(file_path: str | None):
@@ -197,7 +201,7 @@ def build_demo(engine: Engine) -> gr.Blocks:
         return (
             None,
             _DEFAULT_MODEL,
-            info_text(_DEFAULT_MODEL),
+            info_text(_DEFAULT_MODEL)["value"],
             "*Extracted text will appear here...*",
             "",
             "",
@@ -850,7 +854,7 @@ def build_demo(engine: Engine) -> gr.Blocks:
                     elem_classes=["sebi-noborder"],
                 )
                 model_info = gr.Markdown(
-                    value=info_text(_DEFAULT_MODEL),
+                    value=info_text(_DEFAULT_MODEL)["value"],
                     elem_classes=["sebi-meta"],
                 )
                 file_input = gr.File(
@@ -983,6 +987,11 @@ def build_demo(engine: Engine) -> gr.Blocks:
         model_selector.change(
             fn=info_text,
             api_name="get_model_info_text",
+            inputs=[model_selector],
+            outputs=[model_info],
+        )
+        model_selector.input(
+            fn=info_text,
             inputs=[model_selector],
             outputs=[model_info],
         )
