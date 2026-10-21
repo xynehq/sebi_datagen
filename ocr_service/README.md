@@ -51,6 +51,7 @@ Dataset opens the shared Drive folder. Finetuning opens `https://huggingface.co/
 |---|---|---|
 | `chitrapathak-2` | `krutrim-ai-labs/Chitrapathak-2` | Default. Marathi pages stay in Devanagari. |
 | `chitrapathak-marguj` | base plus [`snxtyle/chitrapathak-MarGuj`](https://huggingface.co/snxtyle/chitrapathak-MarGuj) | Gujarati reader. It writes Gujarati. |
+| `chitrapathak-marguj-mixed` | base plus [`snxtyle/chitrapathak_marguj_mixed`](https://huggingface.co/snxtyle/chitrapathak_marguj_mixed) | One shared LoRA for Marathi and Gujarati. |
 | `indicocr` | [`bodhan-ai/indic-ocr`](https://huggingface.co/bodhan-ai/indic-ocr) `weights/ocr` | Published IndicOCR reader. |
 | `indicocr-marguj` | that base plus [`snxtyle/IndicOCR-MarGuj`](https://huggingface.co/snxtyle/IndicOCR-MarGuj) | IndicOCR LoRA for Gujarati. It writes Gujarati. |
 
@@ -89,7 +90,7 @@ curl -s -F "file=@ocr_service/examples/english_notice.png" \
 
 `POST /v1/ocr/stream` uses the same form fields. Add `-N`. Each event is the full text so far: `{"text": "..."}`. The last event is `{"done": true}`.
 
-For `chitrapathak-2` and `chitrapathak-marguj`, `text` is markdown. A title is a `#` or `##` line. A table keeps each item on its own row. A clause keeps its number, as in `१३. तुम्हांस आवश्यकता…`. The image is sent before that instruction, with the system line `You are a helpful assistant.` IndicOCR ids still return plain transcription, including LaTeX for math.
+For `chitrapathak-2`, `chitrapathak-marguj`, and `chitrapathak-marguj-mixed`, `text` is markdown. A title is a `#` or `##` line. A table keeps each item on its own row. A clause keeps its number, as in `१३. तुम्हांस आवश्यकता…`. The image is sent before that instruction, with the system line `You are a helpful assistant.` IndicOCR ids still return plain transcription, including LaTeX for math.
 
 Anyone can open the site or call the API at that same address. No API key is required unless `OCR_API_KEY` is set.
 
@@ -103,7 +104,7 @@ curl -s -F "file=@ocr_service/examples/english_notice.png" \
   https://vivacious-cure-pouncing.ngrok-free.dev/v1/ocr
 ```
 
-`model` is `chitrapathak-2`, `chitrapathak-marguj`, `indicocr`, or `indicocr-marguj`. `page` starts at 1. `dpi` is 72–400 and applies to PDFs. `temperature` is 0–1. `max_tokens` is 1–8192.
+`model` is `chitrapathak-2`, `chitrapathak-marguj`, `chitrapathak-marguj-mixed`, `indicocr`, or `indicocr-marguj`. `page` starts at 1. `dpi` is 72–400 and applies to PDFs. `temperature` is 0–1. `max_tokens` is 1–8192.
 
 PDF pages render at `dpi / 72`, then the long side is capped at 2048 px (`OCR_MAX_SIDE`). Uploads are limited to 30 MB (`OCR_MAX_UPLOAD_BYTES`). The upload is deleted when the request finishes. The capture files stay.
 

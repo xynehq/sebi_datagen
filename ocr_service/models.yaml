@@ -19,6 +19,15 @@ models:
       Chitrapathak 2. It writes Gujarati, including on Marathi pages.
       Use it for Gujarati documents.
 
+  - id: chitrapathak-marguj-mixed
+    label: Chitrapathak MarGuj Mixed
+    base: krutrim-ai-labs/Chitrapathak-2
+    adapter: snxtyle/chitrapathak_marguj_mixed
+    description: >
+      One shared LoRA for Marathi and Gujarati,
+      snxtyle/chitrapathak_marguj_mixed, on Chitrapathak 2. Not the
+      stacked MarGuj adapter. Use this for mixed Marathi and Gujarati pages.
+
   - id: indicocr
     label: IndicOCR
     family: indicocr
