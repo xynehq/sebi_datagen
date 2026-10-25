@@ -10,101 +10,173 @@ pinned: false
 
 # Indic Vachak - SEBI
 
-Indic Vachak - SEBI reads one page from a PNG, JPEG, or PDF. It is the page app, not the line-crop training pipeline in the repository root.
+Page OCR for a PNG, JPEG, or PDF. This is the page app in `ocr_service/`. It is not the line-crop training pipeline in the repository root.
 
-The screen is dark by default. A switch under the Juspay mark turns on the light theme. The address stays `http://127.0.0.1:7860/` with no theme query.
+One process serves **both**:
 
-## Run
+| How | Who | URL |
+|---|---|---|
+| **UI** (Gradio) | Us — try models, pages, DPI, streaming | `http://<host>:7860/` |
+| **API** (`/v1/...`) | Everyone — apps, scripts, xyne / integrations | `http://<host>:7860/v1/ocr` |
 
-From the repository root:
+Same models, same finalize path. UI **Raw Markdown** matches API `text`.
+
+Dark theme by default. Theme switch under the Juspay mark. Local URL stays `http://127.0.0.1:7860/` with no theme query.
+
+## Deploy (simple)
+
+On a CUDA/GPU machine (or any machine with Python 3):
 
 ```bash
+git clone https://github.com/xynehq/sebi_datagen.git
+cd sebi_datagen
 ./ocr_service/run.sh
 ```
 
-The first run creates `ocr_service/.venv` and installs the packages. Later runs skip that and open the browser.
+That one command:
 
-Packages for the pipeline and this app are both in the repository root `requirements.txt`. There is no second requirements file. The process uses an NVIDIA GPU, then an Apple GPU, then CPU. On a CUDA machine, install the CUDA build of PyTorch before that file.
+1. Creates `ocr_service/.venv` if needed  
+2. Installs the root `requirements.txt` when packages are missing  
+3. Starts the server on `0.0.0.0:7860`  
+4. Opens the browser when it can  
 
-- Page: `http://127.0.0.1:7860/`
-- OpenAPI: `http://127.0.0.1:7860/docs`
+| | |
+|---|---|
+| **UI** (test in browser) | `http://<server-ip>:7860/` |
+| **API** health | `http://<server-ip>:7860/v1/health` |
+| **API** models | `http://<server-ip>:7860/v1/models` |
+| **API** OCR | `POST http://<server-ip>:7860/v1/ocr` |
+| OpenAPI docs | `http://<server-ip>:7860/docs` |
 
-Copy `.env.example` to `.env` at the repository root when you need a private Hugging Face token, an API key, a different model cache, or a different capture folder. That is the only environment example.
+Other port (for example while testing):
 
-## What the page does
+```bash
+OCR_PORT=7861 ./ocr_service/run.sh
+```
 
-1. Choose a model. Built-in names come from `ocr_service/models.yaml`. Extra Hugging Face vision models are added from the **Add model** tab (see below) and then appear in the same **Model** list.
-2. Upload a PNG, JPEG, or PDF, or open **Example documents** and click an image.
-3. For a PDF, pick the page and the DPI. Images ignore DPI.
-4. Set temperature, streaming, and the longest text the model may write.
-5. Click **Extract text**. Use the **Rendered** tab for the formatted document and **Raw Markdown** for the canonical text (same as `/v1/ocr` `text`). With **Enable Streaming** on, the rendered view updates live; table/layout alignment runs when generation finishes. Chitrapathak is asked for clean Markdown: `#` titles, ordinary paragraphs, and HTML `<table>` markup with one `<tr>` per record. That is the text `/v1/ocr` returns. IndicOCR stays a plain transcription. Repeated lines and code fences are removed before the text is shown. If the model dumps a table column-by-column, the service rebuilds rows from Tesseract **coordinates** while keeping recognized text in the original reading (`OCR_TABLE_LAYOUT=1`, `TESSERACT_CMD`, `OCR_TESSERACT_LANG`). HTML tables stay HTML in the API payload; they are not converted to pipe tables. Well-formed tables, lists, and prose from the model are left unchanged.
-6. While text is arriving, words per second show on the same line as **Dataset** and **Finetuning**.
-7. When the reading finishes, **Export** appears under the extracted text and downloads that text as a `.txt` file.
-8. **Clear** resets the page, including temperature and streaming.
-9. **Use via API** at the bottom opens the sidebar. The named calls are `/process_input`, `/update_slider_and_preview`, `/load_example_image`, `/get_model_info_text`, and `/lambda`.
+Optional `.env` at the **repository root** (copy from `.env.example`):
 
-Dataset opens the shared Drive folder. Finetuning opens `https://huggingface.co/snxtyle`.
+- `HF_TOKEN` — private Hugging Face repos only  
+- `OCR_API_KEY` — require Bearer token on `/v1`  
+- `MODEL_CACHE_DIR` — where weights download (default `ocr_service/model_cache/`)  
 
-## Models
+Built-in adapters are already in `models.yaml`. You do **not** set adapter paths by hand for normal use. First Extract downloads missing weights from Hugging Face.
 
-## Adding an OCR model
+On CUDA hosts, install a CUDA build of PyTorch if pip gave you a CPU-only wheel.
 
-Open the **Add model** tab.
+Do **not** use a separate manual `venv` + `pip` + `uvicorn` flow unless you are debugging. Prefer `./ocr_service/run.sh`.
 
-1. If the server sets **OCR_API_KEY** (or **OCR_MODEL_ADMIN_KEY**), enter it under **Admin key**. Otherwise anyone with access to the UI can add models.
-2. Paste a public **https://huggingface.co/…** link. Use **Base model** for a full vision repo. Optionally paste a **LoRA adapter** in Advanced options. Display name is filled from the Hugging Face id; you can edit it. Text-only, speech, and Tesseract `.traineddata` repos are rejected.
-3. Click **Check link**, then **Download & add**. **Status** shows validation, download, load errors, and when the model is ready. Failed jobs can be retried or removed.
-4. On the **OCR** tab, pick the model in **Model** (the list is not a search box) and run **Extract text**.
+## UI (for our testing)
 
-**Full vision model** — `config.json` plus weights. Chitrapathak-class and generic image-to-text VLMs load with `AutoModelForImageTextToText`. TrOCR / `VisionEncoderDecoderModel` repos load as the **trocr** family (ViT image processor + tokenizer; `sentencepiece` is required).
+Open `http://<host>:7860/` after `./ocr_service/run.sh`. Use this to try models and pages yourself before wiring the API.
 
-**LoRA adapter** — `adapter_config.json`. The base vision model is taken from the adapter config when possible; set **Base model** only when that is missing.
+1. Pick a **Model** (built-in list, or one from **Add model**).  
+2. Upload a PNG, JPEG, or PDF, or open **Example documents**.  
+3. For a PDF: page number and DPI (images ignore DPI).  
+4. Temperature, streaming, max tokens.  
+5. **Extract text**.  
+6. **Rendered** = formatted view while you watch. **Raw Markdown** = canonical text (same string as API `text`).  
+7. **Export** downloads that raw text when a reading finishes.  
+8. **Clear** resets the form.  
+9. **Use via API** at the bottom opens Gradio’s API sidebar for the same server.
 
-Added models are stored in `data/ocr_model_registry/registry.sqlite` (override with **OCR_MODEL_REGISTRY_DB**). Built-in models stay in `ocr_service/models.yaml`. Weight files still go to `ocr_service/model_cache/` (or **MODEL_CACHE_DIR**). Removing a model from the list does not delete shared cache files.
+### Live view vs final layout
 
-Supported families: **chitrapathak**, **indicocr**, **vlm**, and **trocr**. Not every public Hugging Face repo will load.
+| When | What you see |
+|---|---|
+| While streaming | Text and tables update live. Partial HTML tables are closed for display. Tab-separated or pipe tables are shown as HTML as they arrive. |
+| When generation finishes | Geometry / Tesseract row alignment runs once. That final HTML table is what Export and `/v1/ocr` keep. |
 
-API (same admin Bearer token as above): `POST /v1/models/validate`, `POST /v1/models/register`, `GET /v1/models/jobs/{id}`, `GET /v1/models/custom`, `DELETE /v1/models/custom/{id}`.
+Streaming does not wait for Tesseract. Full row alignment is the end pass.
 
-**Troubleshooting**
+Chitrapathak models are asked for Markdown with HTML `<table>` (one `<tr>` per record). IndicOCR stays a plain transcription. Column-by-column dumps can be repaired at the end (`OCR_TABLE_LAYOUT=1`).
+
+Words/s show next to Dataset / Finetuning while text arrives.
+
+## Models (built-in)
+
+| Id | Weights | Use |
+|---|---|---|
+| `chitrapathak-2` | `krutrim-ai-labs/Chitrapathak-2` | Default. Marathi / Devanagari pages. |
+| `chitrapathak-marguj` | base + [`snxtyle/chitrapathak-MarGuj`](https://huggingface.co/snxtyle/chitrapathak-MarGuj) | Stacked Marathi→Gujarati LoRA. Prefer for Gujarati. |
+| `chitrapathak-marguj-mixed` | base + [`snxtyle/chitrapathak_marguj_mixed`](https://huggingface.co/snxtyle/chitrapathak_marguj_mixed) | One shared LoRA for Marathi and Gujarati. |
+| `indicocr` | [`bodhan-ai/indic-ocr`](https://huggingface.co/bodhan-ai/indic-ocr) `weights/ocr` | Published IndicOCR page reader. |
+| `indicocr-marguj` | that base + [`snxtyle/IndicOCR-MarGuj`](https://huggingface.co/snxtyle/IndicOCR-MarGuj) | IndicOCR LoRA for Gujarati. |
+
+List source: `ocr_service/models.yaml`. First use downloads into `ocr_service/model_cache/`. Local Desktop paths are refused.
+
+## Add a model (no code)
+
+Open the **Add model** tab on the page.
+
+1. Admin key only if the server set `OCR_API_KEY` / `OCR_MODEL_ADMIN_KEY`.  
+2. Paste a Hugging Face **https://huggingface.co/…** link (full vision model, or LoRA in Advanced).  
+3. **Check link** → **Download & add**.  
+4. On the **OCR** tab, select it in **Model** and Extract.
+
+Supported families: **chitrapathak**, **indicocr**, **vlm**, **trocr**. Text-only / speech / Tesseract `.traineddata` are rejected.
+
+Page-added models: `data/ocr_model_registry/` (gitignored). Built-ins stay in `models.yaml`.
+
+API: `POST /v1/models/validate`, `POST /v1/models/register`, `GET /v1/models/jobs/{id}`, `GET /v1/models/custom`, `DELETE /v1/models/custom/{id}`.
 
 | Message | What to do |
 |---|---|
-| Adding models is turned off | Set `OCR_API_KEY` or `OCR_MODEL_ADMIN_KEY` on the server and use it as the admin key. |
-| Repository unavailable | Check the link, repo visibility, and optional `HF_TOKEN` for private repos. |
-| Unsupported architecture | Use a vision image-to-text repo (VLM, Chitrapathak, IndicOCR, or TrOCR). Tesseract traineddata is not an engine. |
-| need sentencepiece | Install `sentencepiece` (already in root `requirements.txt`) and retry the job. |
-| Enter the base model | Paste the base Hugging Face id for the LoRA. |
-| Failed download | Read the status reason; fix the repo or disk space, then retry or remove and add again. |
-
-Current built-in ids include `chitrapathak-2`, `chitrapathak-marguj`, `chitrapathak-marguj-mixed`, `indicocr`, and `indicocr-marguj`.
-
-The first Extract or `/v1/ocr` call for a missing model downloads it into `ocr_service/model_cache/`. Local Desktop paths are refused. Set `HF_TOKEN` in the root `.env` only for a private repo.
+| Adding models is turned off | Set `OCR_API_KEY` or `OCR_MODEL_ADMIN_KEY` and use it as the admin key. |
+| Repository unavailable | Check link, visibility, optional `HF_TOKEN`. |
+| Unsupported architecture | Use a vision image-to-text repo. |
+| need sentencepiece | Install `sentencepiece` (in root `requirements.txt`) and retry. |
+| Enter the base model | Paste the base HF id for the LoRA. |
+| Failed download | Fix repo or disk, then retry or remove and add again. |
 
 ## Saved readings
 
-A finished reading is stored under `data/ocr_captures/`. That folder is gitignored.
+Under `data/ocr_captures/` (gitignored):
 
 | What | Where |
 |---|---|
-| Page image that was read | `data/ocr_captures/pages/<id>.png` |
-| Raw text | `data/ocr_captures/text/<id>.txt` |
-| One ledger row | `data/ocr_captures/captures.jsonl` |
+| Page image | `pages/<id>.png` |
+| Raw text | `text/<id>.txt` |
+| Ledger row | `captures.jsonl` |
 
-Each row records the source file name, model, page, DPI, temperature, max tokens, image size, and both file paths. `source` is `model_capture` and `gold` is false. These rows are not training labels. A person still has to accept or correct the text before it can enter `data/datasets/`.
+`source` is `model_capture`, `gold` is false. Not training labels until a person reviews them. Override folder with `OCR_CAPTURE_DIR`.
 
-Set `OCR_CAPTURE_DIR` in the root `.env` to store them somewhere else.
+## API (for everyone / integrations)
 
-## API
+Same server as the UI. Call `/v1` from scripts, backends, or xyne. You do not need the Gradio page for production callers.
 
-If `OCR_API_KEY` is set, send `Authorization: Bearer <key>` on every `/v1` call. The page itself does not use that key.
+If `OCR_API_KEY` is set, every `/v1` request needs `Authorization: Bearer <key>`. The UI Extract button does not send that key.
+
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/v1/health` | Liveness |
+| `GET` | `/v1/models` | Built-in + page-added models |
+| `POST` | `/v1/ocr` | One page → JSON with `text` |
+| `POST` | `/v1/ocr/stream` | SSE; cumulative `{"text":"..."}`, then `{"done":true}` |
+
+Also: model register/validate under `/v1/models/...` (see **Add a model**). Full schema: `http://<host>:7860/docs`.
+
+### Form fields (`/v1/ocr` and `/v1/ocr/stream`)
+
+| Field | Notes |
+|---|---|
+| `file` | PNG, JPEG, or PDF |
+| `model` | e.g. `chitrapathak-marguj-mixed` |
+| `page` | ≥ 1 (PDFs) |
+| `dpi` | 72–400, PDFs only |
+| `temperature` | 0–1 |
+| `max_tokens` | 1–8192 |
+
+### Examples
 
 ```bash
 curl -s http://127.0.0.1:7860/v1/health
 curl -s http://127.0.0.1:7860/v1/models
 
 curl -s -F "file=@ocr_service/examples/english_notice.png" \
-  -F "model=chitrapathak-2" \
+  -F "model=chitrapathak-marguj-mixed" \
   -F "page=1" \
   -F "dpi=200" \
   -F "temperature=0" \
@@ -112,38 +184,41 @@ curl -s -F "file=@ocr_service/examples/english_notice.png" \
   http://127.0.0.1:7860/v1/ocr
 ```
 
-`POST /v1/ocr/stream` uses the same form fields. Add `-N`. Each event is the full text so far: `{"text": "..."}`. The last event is `{"done": true}`.
-
-For `chitrapathak-2`, `chitrapathak-marguj`, and `chitrapathak-marguj-mixed`, `text` is Markdown with HTML tables (`<table>`, `<thead>`, `<tbody>`). A title is a `#` or `##` line. Each table record stays on one `<tr>`. A clause keeps its number, as in `१३. तुम्हांस आवश्यकता…`. The image is sent before that instruction, with the system line `You are a helpful assistant.` IndicOCR ids still return plain transcription, including LaTeX for math. Custom VLM and TrOCR models use the same `/v1/ocr` fields.
-
-Anyone can open the site or call the API at that same address. No API key is required unless `OCR_API_KEY` is set.
+Stream (add `-N`):
 
 ```bash
-curl -s -F "file=@ocr_service/examples/english_notice.png" \
-  -F "model=chitrapathak-2" \
+curl -N -s -F "file=@ocr_service/examples/english_notice.png" \
+  -F "model=chitrapathak-marguj-mixed" \
   -F "page=1" \
   -F "dpi=200" \
   -F "temperature=0" \
   -F "max_tokens=2048" \
-  https://vivacious-cure-pouncing.ngrok-free.dev/v1/ocr
+  http://127.0.0.1:7860/v1/ocr/stream
 ```
 
-`model` is `chitrapathak-2`, `chitrapathak-marguj`, `chitrapathak-marguj-mixed`, `indicocr`, or `indicocr-marguj`. `page` starts at 1. `dpi` is 72–400 and applies to PDFs. `temperature` is 0–1. `max_tokens` is 1–8192.
+With API key:
 
-PDF pages render at `dpi / 72`, then the long side is capped at 2048 px (`OCR_MAX_SIDE`). Uploads are limited to 30 MB (`OCR_MAX_UPLOAD_BYTES`). The upload is deleted when the request finishes. The capture files stay.
+```bash
+curl -s -H "Authorization: Bearer $OCR_API_KEY" \
+  -F "file=@ocr_service/examples/english_notice.png" \
+  -F "model=chitrapathak-2" \
+  http://127.0.0.1:7860/v1/ocr
+```
 
-## Share this machine with ngrok
+Response `text` for Chitrapathak is Markdown with HTML tables. IndicOCR is plain transcription. Long side capped at 2048 px. Upload limit 30 MB. The upload file is deleted after the request; captures under `data/ocr_captures/` stay.
 
-Sign in at [dashboard.ngrok.com](https://dashboard.ngrok.com/signup) as `suraj.nagre@juspay.in`. Copy the authtoken from [your authtoken](https://dashboard.ngrok.com/get-started/your-authtoken).
+## Share with ngrok
 
-The public site is one address: https://vivacious-cure-pouncing.ngrok-free.dev
-
-The authtoken stays in the root `.env` as `NGROK_AUTHTOKEN` and in `ocr_service/ngrok.yml`. Git ignores both. With the app already running:
+1. Put `NGROK_AUTHTOKEN` in the root `.env` (gitignored).  
+2. Start the app with `./ocr_service/run.sh` (port 7860).  
+3. Then:
 
 ```bash
 ngrok start indic-vachak --config ocr_service/ngrok.yml
 ```
 
+`ocr_service/ngrok.yml` is gitignored. Do not commit tokens.
+
 ## Hugging Face Space
 
-A Space like the LightOn demo needs a running Gradio or Docker host. The `snxtyle` account cannot create one until [Hugging Face Pro](https://huggingface.co/pro) is enabled. The Docker file in this folder is ready for that. These models also need a GPU in the Space hardware settings.
+Needs Gradio/Docker host and GPU. `snxtyle` needs [HF Pro](https://huggingface.co/pro) to create a Space. Dockerfile in this folder is ready for that.

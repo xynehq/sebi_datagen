@@ -21,21 +21,30 @@ Three OCR models read each line: IndicOCR, Chitrapathak, and Tesseract. Their ag
 
 Indic Vachak - SEBI is a separate app in `ocr_service/`. It reads a whole PNG, JPEG, or PDF page. It does not run this pipeline, and a model reading is not training gold.
 
+### Deploy the page app (simple)
+
 ```bash
+git clone https://github.com/xynehq/sebi_datagen.git
+cd sebi_datagen
 ./ocr_service/run.sh
 ```
 
-One public address, while this machine is running the app and ngrok:
+One command creates the venv, installs packages when needed, and starts the server on port **7860**. Do not use a separate manual `uvicorn` flow for normal deploys.
 
-https://vivacious-cure-pouncing.ngrok-free.dev
+The same process serves **both**:
 
-On this machine the same app is `http://127.0.0.1:7860/`. Anyone can open that public page or call `POST /v1/ocr` on it. No API key is required unless `OCR_API_KEY` is set in `.env`.
+- **UI** (our testing): `http://127.0.0.1:7860/` — pick a model, upload a page, Extract  
+- **API** (everyone / integrations): `POST /v1/ocr`, plus `/v1/health` and `/v1/models`  
 
-Finished readings are written to `data/ocr_captures/` (`pages/`, `text/`, and `captures.jsonl`). Each row is `source: model_capture` and `gold: false`. A person still has to accept or correct the text before it can enter `data/datasets/`.
+Other port: `OCR_PORT=7861 ./ocr_service/run.sh`.
 
-There is one `requirements.txt`, one `.env.example`, and one `.gitignore`, all at the repository root. Copy `.env.example` to `.env`. The ngrok token stays in `.env` and in `ocr_service/ngrok.yml`. Both are gitignored.
+Built-in models (Chitrapathak-2, MarGuj, MarGuj Mixed, IndicOCR, …) are in `ocr_service/models.yaml`. First Extract downloads weights. Optional root `.env`: `HF_TOKEN`, `OCR_API_KEY`. Add more models from the **Add model** tab (no code edit).
 
-The screen, models, API, and tunnel steps are in [ocr_service/README.md](ocr_service/README.md).
+Streaming shows tables live in the UI; row alignment finishes when generation ends. Full UI + API docs: [ocr_service/README.md](ocr_service/README.md).
+
+Finished readings go to `data/ocr_captures/` (`source: model_capture`, `gold: false`). Not training gold until a person reviews them.
+
+There is one `requirements.txt`, one `.env.example`, and one `.gitignore` at the repository root. `.env` and `ocr_service/ngrok.yml` are gitignored.
 
 ## What you need
 
