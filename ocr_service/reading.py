@@ -1,7 +1,7 @@
 """Shape a page reading into the markdown the downstream stack reads.
 
 Chitrapathak is prompted for this shape so a later fine-tune can be served
-without changing the caller: headings, markdown tables with one row per item,
+without changing the caller: headings, HTML tables with one row per item,
 and clause numbers on the same line as the clause.
 """
 
@@ -9,13 +9,23 @@ from __future__ import annotations
 
 import re
 
+from layout_repair import repair_column_major_tables
+
 CHITRA_PROMPT = (
-    "Convert this document image to clean markdown. "
-    "Use # or ## for real titles. "
-    "Keep each table as a markdown table with one row per item, so cells in a row stay together. "
-    "Keep a clause number on the same line as its clause. "
-    "Transcribe the document's own digits and spelling exactly. "
-    "Do not repeat lines. Stop at the end of the page."
+    "Return clean Markdown for this document page in natural reading order. "
+    "Use #, ##, or ### for titles and section headings, and ordinary paragraphs for prose. "
+    "Represent each table as one HTML <table> with <thead> and <tbody>, one <tr> per record "
+    "and one <th>/<td> per cell. Keep every row's column values together. "
+    "Preserve multi-line cell text inside the same cell. "
+    "Do not merge adjacent records, invent columns, or move table text into paragraphs. "
+    "Do not emit Column 1 style placeholders. "
+    "Never list a whole column of serials, then names, then dates, then weekdays. "
+    "Lists: use - or 1. with each item on its own line. "
+    "Keep a clause number on the same line as the clause. "
+    "Charts and graphs: transcribe titles, axis labels, and readable values. "
+    "Transcribe the document's own script, digits, and spelling exactly. "
+    "Do not transcribe decorative stamp borders, guilloche patterns, or blank graphics. "
+    "Do not add explanations or metadata. Stop at the end of the page."
 )
 
 _LIST_BREAK = re.compile(r"(?<=\S)[ \t]+(?=[०-९0-9]{1,3}\.\s)")
@@ -44,12 +54,17 @@ def clean_reading(text: str, *echoes: str) -> str:
     body = _cut_repeated_lines(body)
     body = _cut_block_loops(body)
     body = _cut_counting_loops(body)
-    return body.strip()
+    return finalize_reading(body.strip())
+
+
+def finalize_reading(text: str) -> str:
+    """Last pass: keep HTML tables, repair column-major markdown dumps."""
+    return repair_column_major_tables(text)
 
 
 def reading_raw(text: str) -> str:
     """Text to store and export. Structured markdown is kept intact."""
-    body = text.strip()
+    body = finalize_reading(text.strip())
     if _STRUCTURED.search(body):
         return body
     return _plain_lines(body)
@@ -57,7 +72,7 @@ def reading_raw(text: str) -> str:
 
 def reading_markdown(text: str) -> str:
     """Text for the rendered pane. Plain lines stay separated."""
-    body = text.strip()
+    body = finalize_reading(text.strip())
     if _STRUCTURED.search(body):
         return body
     lines = _plain_lines(body)

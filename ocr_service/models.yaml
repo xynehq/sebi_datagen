@@ -23,10 +23,12 @@ models:
     label: Chitrapathak MarGuj Mixed
     base: krutrim-ai-labs/Chitrapathak-2
     adapter: snxtyle/chitrapathak_marguj_mixed
+    adapter_path_env: CHITRAPATHAK_MARGUJ_MIXED_ADAPTER
     description: >
-      One shared LoRA for Marathi and Gujarati,
-      snxtyle/chitrapathak_marguj_mixed, on Chitrapathak 2. Not the
-      stacked MarGuj adapter. Use this for mixed Marathi and Gujarati pages.
+      Shared Marathi+Gujarati LoRA on Chitrapathak 2 (trained release
+      chitrapathak_marguj_mixed). Set CHITRAPATHAK_MARGUJ_MIXED_ADAPTER to
+      your local checkpoints folder to skip the Hugging Face adapter download.
+      Otherwise uses snxtyle/chitrapathak_marguj_mixed.
 
   - id: indicocr
     label: IndicOCR

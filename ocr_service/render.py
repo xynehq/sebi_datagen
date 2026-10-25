@@ -8,6 +8,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from image_preprocess import normalize_document_image
+
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
 _MIN_DPI = 72
 _MAX_DPI = 400
@@ -71,7 +73,7 @@ def _prepare_image(path: Path, *, page: int) -> PreparedPage:
             image = opened.convert("RGB")
     except Exception as exc:
         raise RenderError(f"Could not open the image: {exc}") from exc
-    image = _cap_long_side(image)
+    image = _cap_long_side(normalize_document_image(image))
     width, height = image.size
     return PreparedPage(
         image=image,
@@ -92,7 +94,7 @@ def _prepare_pdf(path: Path, *, page: int, dpi: int) -> PreparedPage:
         rendered = pdf[page - 1].render(scale=dpi / 72).to_pil().convert("RGB")
     finally:
         pdf.close()
-    image = _cap_long_side(rendered)
+    image = _cap_long_side(normalize_document_image(rendered))
     width, height = image.size
     return PreparedPage(
         image=image,

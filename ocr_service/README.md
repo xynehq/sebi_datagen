@@ -33,11 +33,11 @@ Copy `.env.example` to `.env` at the repository root when you need a private Hug
 
 ## What the page does
 
-1. Choose a model. All four stay in the list even when the weights are not on the machine yet.
+1. Choose a model. Built-in names come from `ocr_service/models.yaml`. Extra Hugging Face vision models are added from the **Add model** tab (see below) and then appear in the same **Model** list.
 2. Upload a PNG, JPEG, or PDF, or open **Example documents** and click an image.
 3. For a PDF, pick the page and the DPI. Images ignore DPI.
 4. Set temperature, streaming, and the longest text the model may write.
-5. Click **Extract text**. The rendered reading stays above. **Raw Markdown Output** stays below. Chitrapathak is asked for clean markdown: `#` titles, a markdown table with one row per item, and the clause number on the same line as the clause. That is the text `/v1/ocr` returns, so a fine-tune trained on the same shape can replace the model without changing the caller. IndicOCR stays a plain transcription. Repeated lines and code fences are removed before the text is shown.
+5. Click **Extract text**. Use the **Rendered** tab for the formatted document and **Raw Markdown** for the canonical text (same as `/v1/ocr` `text`). With **Enable Streaming** on, the rendered view updates live; table/layout alignment runs when generation finishes. Chitrapathak is asked for clean Markdown: `#` titles, ordinary paragraphs, and HTML `<table>` markup with one `<tr>` per record. That is the text `/v1/ocr` returns. IndicOCR stays a plain transcription. Repeated lines and code fences are removed before the text is shown. If the model dumps a table column-by-column, the service rebuilds rows from Tesseract **coordinates** while keeping recognized text in the original reading (`OCR_TABLE_LAYOUT=1`, `TESSERACT_CMD`, `OCR_TESSERACT_LANG`). HTML tables stay HTML in the API payload; they are not converted to pipe tables. Well-formed tables, lists, and prose from the model are left unchanged.
 6. While text is arriving, words per second show on the same line as **Dataset** and **Finetuning**.
 7. When the reading finishes, **Export** appears under the extracted text and downloads that text as a `.txt` file.
 8. **Clear** resets the page, including temperature and streaming.
@@ -47,13 +47,37 @@ Dataset opens the shared Drive folder. Finetuning opens `https://huggingface.co/
 
 ## Models
 
-| Id | Weights | Use |
-|---|---|---|
-| `chitrapathak-2` | `krutrim-ai-labs/Chitrapathak-2` | Default. Marathi pages stay in Devanagari. |
-| `chitrapathak-marguj` | base plus [`snxtyle/chitrapathak-MarGuj`](https://huggingface.co/snxtyle/chitrapathak-MarGuj) | Gujarati reader. It writes Gujarati. |
-| `chitrapathak-marguj-mixed` | base plus [`snxtyle/chitrapathak_marguj_mixed`](https://huggingface.co/snxtyle/chitrapathak_marguj_mixed) | One shared LoRA for Marathi and Gujarati. |
-| `indicocr` | [`bodhan-ai/indic-ocr`](https://huggingface.co/bodhan-ai/indic-ocr) `weights/ocr` | Published IndicOCR reader. |
-| `indicocr-marguj` | that base plus [`snxtyle/IndicOCR-MarGuj`](https://huggingface.co/snxtyle/IndicOCR-MarGuj) | IndicOCR LoRA for Gujarati. It writes Gujarati. |
+## Adding an OCR model
+
+Open the **Add model** tab.
+
+1. If the server sets **OCR_API_KEY** (or **OCR_MODEL_ADMIN_KEY**), enter it under **Admin key**. Otherwise anyone with access to the UI can add models.
+2. Paste a public **https://huggingface.co/…** link. Use **Base model** for a full vision repo. Optionally paste a **LoRA adapter** in Advanced options. Display name is filled from the Hugging Face id; you can edit it. Text-only, speech, and Tesseract `.traineddata` repos are rejected.
+3. Click **Check link**, then **Download & add**. **Status** shows validation, download, load errors, and when the model is ready. Failed jobs can be retried or removed.
+4. On the **OCR** tab, pick the model in **Model** (the list is not a search box) and run **Extract text**.
+
+**Full vision model** — `config.json` plus weights. Chitrapathak-class and generic image-to-text VLMs load with `AutoModelForImageTextToText`. TrOCR / `VisionEncoderDecoderModel` repos load as the **trocr** family (ViT image processor + tokenizer; `sentencepiece` is required).
+
+**LoRA adapter** — `adapter_config.json`. The base vision model is taken from the adapter config when possible; set **Base model** only when that is missing.
+
+Added models are stored in `data/ocr_model_registry/registry.sqlite` (override with **OCR_MODEL_REGISTRY_DB**). Built-in models stay in `ocr_service/models.yaml`. Weight files still go to `ocr_service/model_cache/` (or **MODEL_CACHE_DIR**). Removing a model from the list does not delete shared cache files.
+
+Supported families: **chitrapathak**, **indicocr**, **vlm**, and **trocr**. Not every public Hugging Face repo will load.
+
+API (same admin Bearer token as above): `POST /v1/models/validate`, `POST /v1/models/register`, `GET /v1/models/jobs/{id}`, `GET /v1/models/custom`, `DELETE /v1/models/custom/{id}`.
+
+**Troubleshooting**
+
+| Message | What to do |
+|---|---|
+| Adding models is turned off | Set `OCR_API_KEY` or `OCR_MODEL_ADMIN_KEY` on the server and use it as the admin key. |
+| Repository unavailable | Check the link, repo visibility, and optional `HF_TOKEN` for private repos. |
+| Unsupported architecture | Use a vision image-to-text repo (VLM, Chitrapathak, IndicOCR, or TrOCR). Tesseract traineddata is not an engine. |
+| need sentencepiece | Install `sentencepiece` (already in root `requirements.txt`) and retry the job. |
+| Enter the base model | Paste the base Hugging Face id for the LoRA. |
+| Failed download | Read the status reason; fix the repo or disk space, then retry or remove and add again. |
+
+Current built-in ids include `chitrapathak-2`, `chitrapathak-marguj`, `chitrapathak-marguj-mixed`, `indicocr`, and `indicocr-marguj`.
 
 The first Extract or `/v1/ocr` call for a missing model downloads it into `ocr_service/model_cache/`. Local Desktop paths are refused. Set `HF_TOKEN` in the root `.env` only for a private repo.
 
@@ -90,7 +114,7 @@ curl -s -F "file=@ocr_service/examples/english_notice.png" \
 
 `POST /v1/ocr/stream` uses the same form fields. Add `-N`. Each event is the full text so far: `{"text": "..."}`. The last event is `{"done": true}`.
 
-For `chitrapathak-2`, `chitrapathak-marguj`, and `chitrapathak-marguj-mixed`, `text` is markdown. A title is a `#` or `##` line. A table keeps each item on its own row. A clause keeps its number, as in `१३. तुम्हांस आवश्यकता…`. The image is sent before that instruction, with the system line `You are a helpful assistant.` IndicOCR ids still return plain transcription, including LaTeX for math.
+For `chitrapathak-2`, `chitrapathak-marguj`, and `chitrapathak-marguj-mixed`, `text` is Markdown with HTML tables (`<table>`, `<thead>`, `<tbody>`). A title is a `#` or `##` line. Each table record stays on one `<tr>`. A clause keeps its number, as in `१३. तुम्हांस आवश्यकता…`. The image is sent before that instruction, with the system line `You are a helpful assistant.` IndicOCR ids still return plain transcription, including LaTeX for math. Custom VLM and TrOCR models use the same `/v1/ocr` fields.
 
 Anyone can open the site or call the API at that same address. No API key is required unless `OCR_API_KEY` is set.
 

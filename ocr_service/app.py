@@ -17,7 +17,21 @@ from fastapi.responses import StreamingResponse
 
 from capture import save_capture
 from engine import Engine
+from auth import check_model_admin
+from model_jobs import get_job_status
+from model_management import (
+    clear_default,
+    list_custom_with_jobs,
+    register_from_validation,
+    remove_custom,
+    set_default,
+    validate_hf_url,
+)
+from model_store import init_store, set_enabled
 from registry import ModelError, get_spec, list_models
+from document_geometry import geometry_version
+from finalize import FINALIZER_VERSION, PAGE_LAYOUT_VERSION, finalize_document_for_response, last_geometry_report
+from table_layout import table_layout_version
 from render import RenderError, prepare
 from ui import build_demo
 
@@ -38,6 +52,7 @@ def _load_env() -> None:
 
 
 _load_env()
+init_store()
 
 engine = Engine()
 app = FastAPI(title="Indic Vachak - SEBI", version="1.0.0")
@@ -131,8 +146,22 @@ def _http_error(exc: Exception) -> HTTPException:
 
 
 @app.get("/v1/health")
-def health(_auth: None = Depends(require_key)) -> dict[str, str]:
-    return {"status": "ok", "device": engine.device}
+def health(_auth: None = Depends(require_key)) -> dict[str, object]:
+    import shutil
+
+    report = last_geometry_report() or {}
+    return {
+        "status": "ok",
+        "device": engine.device,
+        "finalizer": FINALIZER_VERSION,
+        "page_layout": PAGE_LAYOUT_VERSION,
+        "table_layout": table_layout_version(),
+        "document_geometry": geometry_version(),
+        "tesseract_on_path": bool(shutil.which("tesseract")),
+        "ocr_table_layout": os.environ.get("OCR_TABLE_LAYOUT", "1"),
+        "ocr_table_format": os.environ.get("OCR_TABLE_FORMAT", "html"),
+        "last_geometry": report,
+    }
 
 
 @app.get("/v1/models")
@@ -142,6 +171,110 @@ def models(_auth: None = Depends(require_key)) -> dict[str, object]:
     except ModelError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     return {"models": rows}
+
+
+def _admin_dep(authorization: str | None = Header(default=None)) -> None:
+    try:
+        check_model_admin(authorization=authorization)
+    except ModelError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@app.get("/v1/models/custom")
+def models_custom(_auth: None = Depends(_admin_dep)) -> dict[str, object]:
+    return {"models": list_custom_with_jobs()}
+
+
+@app.post("/v1/models/validate")
+def models_validate(
+    body: dict[str, object],
+    _auth: None = Depends(_admin_dep),
+) -> dict[str, object]:
+    url = str(body.get("url") or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="url is required")
+    try:
+        result = validate_hf_url(
+            url,
+            revision=str(body.get("revision") or "") or None,
+            family_hint=str(body.get("family") or ""),
+            base_override=str(body.get("base_repo_id") or ""),
+            _authorized=True,
+        )
+    except ModelError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    return {"validation": result}
+
+
+@app.post("/v1/models/register")
+def models_register(
+    body: dict[str, object],
+    _auth: None = Depends(_admin_dep),
+) -> dict[str, object]:
+    url = str(body.get("url") or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="url is required")
+    try:
+        payload = register_from_validation(
+            url=url,
+            label=str(body.get("label") or ""),
+            description=str(body.get("description") or ""),
+            model_id=str(body.get("model_id") or ""),
+            languages=str(body.get("languages") or "unknown"),
+            family=str(body.get("family") or ""),
+            revision=str(body.get("revision") or "") or None,
+            base_override=str(body.get("base_repo_id") or ""),
+            _authorized=True,
+        )
+    except ModelError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    return payload
+
+
+@app.get("/v1/models/jobs/{job_id}")
+def models_job(job_id: str, _auth: None = Depends(_admin_dep)) -> dict[str, object]:
+    try:
+        return get_job_status(job_id)
+    except ModelError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@app.patch("/v1/models/custom/{model_id}")
+def models_custom_patch(
+    model_id: str,
+    body: dict[str, object],
+    _auth: None = Depends(_admin_dep),
+) -> dict[str, object]:
+    if "enabled" in body:
+        try:
+            set_enabled(model_id, bool(body["enabled"]))
+        except ModelError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    return {"ok": True}
+
+
+@app.delete("/v1/models/custom/{model_id}")
+def models_custom_delete(model_id: str, _auth: None = Depends(_admin_dep)) -> dict[str, object]:
+    try:
+        remove_custom(model_id, active_model_id=engine._loaded_id)
+    except ModelError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    return {"ok": True}
+
+
+@app.post("/v1/models/custom/{model_id}/default")
+def models_custom_default(model_id: str, _auth: None = Depends(_admin_dep)) -> dict[str, object]:
+    try:
+        set_default(model_id)
+    except ModelError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    return {"ok": True, "default_model_id": model_id}
+
+
+@app.delete("/v1/models/default")
+def models_default_clear(_auth: None = Depends(_admin_dep)) -> dict[str, object]:
+    clear_default()
+    return {"ok": True}
 
 
 @app.post("/v1/ocr")
@@ -158,11 +291,18 @@ async def ocr(
     path = await _store_upload(file)
     try:
         prepared = prepare(path, page=page, dpi=dpi)
-        text = engine.read(
+        streamed = ""
+        for streamed in engine.stream(
             prepared.image,
             model_id=model,
             temperature=temperature,
             max_new_tokens=max_tokens,
+        ):
+            pass
+        text = finalize_document_for_response(
+            prepared.image,
+            streamed,
+            model_id=model,
         )
         save_capture(
             image=prepared.image,
@@ -221,9 +361,16 @@ async def ocr_stream(
                 last = text
                 payload = json.dumps({"text": text}, ensure_ascii=False)
                 yield f"data: {payload}\n\n"
+            final = finalize_document_for_response(
+                prepared.image,
+                last,
+                model_id=model,
+            )
+            payload = json.dumps({"text": final}, ensure_ascii=False)
+            yield f"data: {payload}\n\n"
             save_capture(
                 image=prepared.image,
-                text=last,
+                text=final,
                 source_name=file.filename or path.name,
                 model=model,
                 page=prepared.page,

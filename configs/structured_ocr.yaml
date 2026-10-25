@@ -1,0 +1,55 @@
+# Structured full-page Chitrapathak SFT / eval (training repo only)
+structured_ocr:
+  canonical_format: markdown_with_html_tables
+  empty_page_target: ""
+
+  prompts:
+    line_crop: |
+      Perform OCR on this image and transcribe all visible text exactly as it appears.
+    full_page: |
+      Convert this document page to canonical markdown in correct reading order.
+      Use # / ## / ### for headings. For tables, output HTML <table> with row-major cells.
+      Transcribe in the original script and printed digits exactly. Stop at end of page.
+
+  image_processing:
+    # Current IndicPhotoOCR SFT/eval default
+    max_pixels: 300000
+    min_pixels: 3136
+    # Reference experiment (LightOn-style); compare before locking training
+    lighton_reference:
+      render_dpi: 200
+      max_longest_edge: 1540
+      max_pixels: 600000
+
+  inference_baseline:
+    max_new_tokens_full_page: 4096
+    max_new_tokens_line: 512
+    temperature_sweep: [0.0, 0.1]
+    structured_prompt: true
+
+  dataset_targets:
+    bengali: {train: 900, val: 100, locked_eval_new: 100}
+    marathi: {train: 270, val: 30, locked_eval: 100}
+    gujarati: {train: 270, val: 30, locked_eval: 100}
+
+  training_gate:
+    require_human_verified: true
+    blocked_label_sources: [tesseract_draft, auto_ocr, pending, candidate]
+    indic_sft_script: ../IndicPhotoOCR/scripts/sft_chitrapathak.py
+    frozen_eval_leak_check: true
+
+  sft_recommended:
+    task_mix:
+      full_page: 0.6
+      region_crop: 0.25
+      line_crop: 0.15
+    epochs: 2
+    batch_size: 2
+    grad_accum: 8
+    lora: language_model_only
+    note: Do not run until LQ v2 manifest passes assert_training_ready
+
+  rlvr:
+    enabled: false
+    reward_module: training.structured_ocr.rewards.score_verifiable_output
+    prerequisite: reliable synthetic eval + verified SFT checkpoint

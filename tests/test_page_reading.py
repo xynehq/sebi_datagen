@@ -11,10 +11,14 @@ from reading import CHITRA_PROMPT, clean_reading, reading_markdown, reading_raw 
 
 
 def test_prompt_asks_for_the_stack_shape() -> None:
-    assert "clean markdown" in CHITRA_PROMPT
-    assert "# or ##" in CHITRA_PROMPT
-    assert "one row per item" in CHITRA_PROMPT
-    assert "same line as its clause" in CHITRA_PROMPT
+    assert "clean markdown" in CHITRA_PROMPT.casefold()
+    assert "##" in CHITRA_PROMPT and "###" in CHITRA_PROMPT
+    assert "HTML" in CHITRA_PROMPT
+    assert "<table>" in CHITRA_PROMPT or "<table" in CHITRA_PROMPT
+    assert "same line as the clause" in CHITRA_PROMPT
+    assert "reading order" in CHITRA_PROMPT
+    assert "guilloche" in CHITRA_PROMPT
+    assert "Charts and graphs" in CHITRA_PROMPT
 
 
 def test_structured_markdown_is_not_flattened() -> None:

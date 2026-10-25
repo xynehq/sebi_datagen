@@ -14,6 +14,13 @@ tree.txt
 .env
 ngrok.yml
 configs/local.yaml
+ocr_service/user_models.yaml
+data/ocr_model_registry/
+
+# Local OCR dev outputs (debug runs, pilots).
+ocr_service/debug_artifacts/
+out/
+docs/sebi_audit_benchmark_results.json
 
 # Local weights and training outputs. Do not push these.
 # Engine source lives in models/IndicPhotoOCR, models/chitrapathak, and models/tesseract.

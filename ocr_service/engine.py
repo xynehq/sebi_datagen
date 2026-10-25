@@ -8,6 +8,7 @@ from collections.abc import Iterator
 
 from PIL import Image
 
+from finalize import finalize_document_markdown
 from reading import CHITRA_PROMPT, clean_reading
 from registry import ModelError, ModelSpec, ensure_weights, get_spec
 
@@ -45,6 +46,7 @@ class Engine:
         self._eos: int | None = None
         self._max_side: int | None = None
         self._repetition_penalty = 1.0
+        self._inference_mode = "chat_vlm"
 
     @property
     def device(self) -> str:
@@ -66,7 +68,10 @@ class Engine:
             max_new_tokens=max_new_tokens,
         ):
             text = chunk
-        return text
+        return self.finalize_page(image, text, model_id=model_id)
+
+    def finalize_page(self, image: Image.Image, text: str, *, model_id: str) -> str:
+        return finalize_document_markdown(image, text, model_id=model_id)
 
     def stream(
         self,
@@ -95,14 +100,34 @@ class Engine:
             adapter_path,
             device=self._device,
             subfolder=spec.subfolder,
+            family=spec.family,
         )
-        if spec.family == "indicocr":
+        if spec.family == "trocr":
+            self._inference_mode = "trocr"
+            self._system = None
+            self._prompt = ""
+            self._eos = None
+            self._max_side = 2048
+            self._repetition_penalty = 1.0
+        elif spec.family == "indicocr":
+            self._inference_mode = "chat_vlm"
             self._system = None
             self._prompt = _INDIC_PROMPT
             self._eos = _INDIC_EOS
             self._max_side = _INDIC_MAX_SIDE
             self._repetition_penalty = 1.0
+        elif spec.family == "vlm":
+            self._inference_mode = "chat_vlm"
+            self._system = "You are a helpful assistant."
+            self._prompt = (
+                "This is a document page image. Transcribe all visible text faithfully. "
+                "Preserve reading order and line breaks where possible."
+            )
+            self._eos = None
+            self._max_side = 2048
+            self._repetition_penalty = 1.05
         else:
+            self._inference_mode = "chat_vlm"
             self._system = "You are a helpful assistant."
             self._prompt = _CHITRA_PROMPT
             self._eos = None
@@ -125,11 +150,20 @@ class Engine:
         max_new_tokens: int,
     ) -> Iterator[str]:
         import torch
-        from transformers import TextIteratorStreamer
 
         processor = self._processor
         model = self._model
         image = _fit_side(image, self._max_side)
+        if self._inference_mode == "trocr":
+            yield from self._generate_trocr(
+                image,
+                temperature=temperature,
+                max_new_tokens=max_new_tokens,
+            )
+            return
+
+        from transformers import TextIteratorStreamer
+
         user = {
             "role": "user",
             "content": [
@@ -156,6 +190,7 @@ class Engine:
             kwargs["top_p"] = 0.9
         if self._repetition_penalty != 1.0:
             kwargs["repetition_penalty"] = self._repetition_penalty
+            kwargs["no_repeat_ngram_size"] = 3
         if self._eos is not None:
             kwargs["eos_token_id"] = self._eos
         streamer = TextIteratorStreamer(
@@ -187,9 +222,53 @@ class Engine:
         if not pieces:
             yield ""
 
+    def _generate_trocr(
+        self,
+        image: Image.Image,
+        *,
+        temperature: float,
+        max_new_tokens: int,
+    ) -> Iterator[str]:
+        import torch
 
-def _load_model(base_path, adapter_path, *, device: str, subfolder: str | None):
+        processor = self._processor
+        model = self._model
+        pixel_values = processor(images=image, return_tensors="pt").pixel_values
+        pixel_values = pixel_values.to(model.device)
+        do_sample = temperature > 0
+        gen_kwargs: dict[str, object] = {
+            "max_new_tokens": min(int(max_new_tokens), 384),
+            "do_sample": do_sample,
+        }
+        if do_sample:
+            gen_kwargs["temperature"] = temperature
+        with torch.inference_mode():
+            generated = model.generate(pixel_values, **gen_kwargs)
+        text = processor.batch_decode(generated, skip_special_tokens=True)[0]
+        yield _clean(text)
+
+
+def _load_model(base_path, adapter_path, *, device: str, subfolder: str | None, family: str):
     import torch
+
+    if family == "trocr":
+        from transformers import (
+            TrOCRProcessor,
+            ViTImageProcessor,
+            VisionEncoderDecoderModel,
+            XLMRobertaTokenizer,
+        )
+
+        path = str(base_path)
+        # TrOCR repos ship sentencepiece; AutoTokenizer fast-path fails without tokenizer.json.
+        image_processor = ViTImageProcessor.from_pretrained(path, local_files_only=True)
+        tokenizer = XLMRobertaTokenizer.from_pretrained(path, local_files_only=True)
+        processor = TrOCRProcessor(image_processor=image_processor, tokenizer=tokenizer)
+        model = VisionEncoderDecoderModel.from_pretrained(path, local_files_only=True)
+        model.to(device)
+        model.eval()
+        return model, processor
+
     from transformers import AutoModelForImageTextToText, AutoProcessor
 
     dtype = torch.float32 if device == "cpu" else torch.bfloat16
@@ -238,3 +317,5 @@ def _fit_side(image: Image.Image, limit: int | None) -> Image.Image:
 
 def _clean(text: str) -> str:
     return clean_reading(text, _CHITRA_PROMPT, _INDIC_PROMPT)
+
+
