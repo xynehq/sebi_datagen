@@ -1,0 +1,10 @@
+# Versions as validated on the GPU host (2026-10-26). torch comes from the CUDA 12.8 wheel index
+# (see Dockerfile); transformers must stay on 4.57.x for IndicTrans2's remote code.
+transformers==4.57.6
+IndicTransToolkit==1.1.1
+sentencepiece==0.2.2
+sacremoses==0.2.0
+fastapi==0.146.0
+uvicorn==0.54.0
+pydantic==2.14.1
+huggingface_hub
